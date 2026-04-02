@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FraudSignal Agent — Dashboard</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d1117;
+      --bg-card:     #161b22;
+      --bg-input:    #0d1117;
+      --border:      #30363d;
+      --border-focus:#58a6ff;
+      --text:        #e6edf3;
+      --text-muted:  #8b949e;
+      --text-dim:    #484f58;
+      --accent:      #58a6ff;
+      --green:       #3fb950;
+      --red:         #f85149;
+      --yellow:      #d29922;
+      --purple:      #bc8cff;
+      --mono:        'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+      --sans:        -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --radius:      8px;
+      --shadow:      0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    html { font-size: 15px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #58a6ff 0%, #bc8cff 100%);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    header h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    header h1 span { color: var(--accent); }
+    .header-badge {
+      margin-left: auto;
+      background: rgba(88,166,255,0.12);
+      border: 1px solid rgba(88,166,255,0.3);
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    #api-status {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    #api-status.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #api-status.offline { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px; height: 14px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* ── Form ────────────────────────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    label .hint {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    input[type="number"], input[type="text"], select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      padding: 9px 12px;
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -moz-appearance: textfield;
+    }
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+    }
+
+    .toggle-group {
+      display: flex;
+      gap: 8px;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-family: var(--mono);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .toggle-btn.active {
+      background: rgba(88,166,255,0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .toggle-btn:hover:not(.active) {
+      border-color: var(--text-muted);
+      color: var(--text);
+    }
+
+    /* ── Presets ─────────────────────────────────────────────────────── */
+    .presets {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .preset-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .preset-btn.fraud  { border-color: rgba(248,81,73,0.4); color: var(--red); }
+    .preset-btn.legit  { border-color: rgba(63,185,80,0.4); color: var(--green); }
+    .preset-btn.uncertain { border-color: rgba(210,153,34,0.4); color: var(--yellow); }
+
+    /* ── Submit button ───────────────────────────────────────────────── */
+    .btn-evaluate {
+      width: 100%;
+      margin-top: 20px;
+      padding: 13px;
+      background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.2px;
+    }
+    .btn-evaluate:hover:not(:disabled) { opacity: 0.88; }
+    .btn-evaluate:active:not(:disabled) { transform: scale(0.99); }
+    .btn-evaluate:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Spinner ─────────────────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result panel ────────────────────────────────────────────────── */
+    #result-panel { display: none; }
+
+    /* ── Decision badge ──────────────────────────────────────────────── */
+    .decision-banner {
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border: 1px solid;
+    }
+    .decision-banner.FRAUD {
+      background: rgba(248,81,73,0.08);
+      border-color: rgba(248,81,73,0.35);
+    }
+    .decision-banner.LEGITIMATE {
+      background: rgba(63,185,80,0.08);
+      border-color: rgba(63,185,80,0.35);
+    }
+    .decision-banner.UNCERTAIN {
+      background: rgba(210,153,34,0.08);
+      border-color: rgba(210,153,34,0.35);
+    }
+    .decision-icon { font-size: 2rem; line-height: 1; }
+    .decision-label {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .decision-banner.FRAUD      .decision-label { color: var(--red); }
+    .decision-banner.LEGITIMATE .decision-label { color: var(--green); }
+    .decision-banner.UNCERTAIN  .decision-label { color: var(--yellow); }
+    .decision-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .decision-cost {
+      margin-left: auto;
+      text-align: right;
+    }
+    .decision-cost .cost-val {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--purple);
+    }
+    .decision-cost .cost-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Probability bar ─────────────────────────────────────────────── */
+    .prob-section { margin-bottom: 20px; }
+    .prob-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .prob-value {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .prob-bar-track {
+      height: 10px;
+      background: var(--bg);
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      width: 0%;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .prob-bar-fill.FRAUD      { background: linear-gradient(90deg, #f85149, #ff6b6b); }
+    .prob-bar-fill.LEGITIMATE { background: linear-gradient(90deg, #3fb950, #56d364); }
+    .prob-bar-fill.UNCERTAIN  { background: linear-gradient(90deg, #d29922, #e3b341); }
+
+    /* ── Metrics row ─────────────────────────────────────────────────── */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .metric-val {
+      font-family: var(--mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .metric-lbl {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+    }
+
+    /* ── Signals section ─────────────────────────────────────────────── */
+    .signals-section { margin-bottom: 20px; }
+    .signals-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .signals-count {
+      background: rgba(188,140,255,0.15);
+      color: var(--purple);
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 0.7rem;
+    }
+    .no-signals {
+      color: var(--text-dim);
+      font-size: 0.82rem;
+      font-style: italic;
+      padding: 10px 0;
+    }
+    .signal-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .signal-card:last-child { margin-bottom: 0; }
+    .signal-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .signal-name {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .signal-cost {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--purple);
+      background: rgba(188,140,255,0.1);
+      border: 1px solid rgba(188,140,255,0.2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .signal-adj {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .signal-adj.pos { color: var(--red); }
+    .signal-adj.neg { color: var(--green); }
+    .signal-adj.neu { color: var(--text-muted); }
+    .signal-tx {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      word-break: break-all;
+      background: rgba(0,0,0,0.3);
+      padding: 6px 10px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+    }
+    .signal-tx span { color: var(--text-muted); }
+    .signal-data {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 6px;
+    }
+    .signal-datum {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .signal-datum strong {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .offline-badge {
+      font-size: 0.65rem;
+      background: rgba(210,153,34,0.15);
+      color: var(--yellow);
+      border: 1px solid rgba(210,153,34,0.3);
+      padding: 1px 7px;
+      border-radius: 10px;
+    }
+
+    /* ── Reasoning ───────────────────────────────────────────────────── */
+    .reasoning-section { margin-bottom: 0; }
+    .reasoning-text {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .reasoning-text .step {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── Error banner ────────────────────────────────────────────────── */
+    #error-banner {
+      display: none;
+      background: rgba(248,81,73,0.08);
+      border: 1px solid rgba(248,81,73,0.35);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      color: var(--red);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    #error-banner strong { display: block; margin-bottom: 4px; }
+
+    /* ── Empty state ─────────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+      text-align: center;
+      gap: 12px;
+    }
+    .empty-state .icon { font-size: 3rem; opacity: 0.4; }
+    .empty-state p { font-size: 0.85rem; max-width: 260px; line-height: 1.5; }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">🛡️</div>
+  <h1>Fraud<span>Signal</span> Agent</h1>
+  <div class="header-badge">Stellar Hacks 2026</div>
+  <div id="api-status" title="API status"></div>
+</header>
+
+<!-- ── Main layout ─────────────────────────────────────────────────────── -->
+<div class="container">
+
+  <!-- ── Left: Input form ──────────────────────────────────────────────── -->
+  <div>
+    <div class="card">
+      <div class="card-title">Transaction Input</div>
+
+      <!-- Presets -->
+      <div class="presets">
+        <span style="font-size:0.72rem;color:var(--text-dim);align-self:center;margin-right:4px;">Presets:</span>
+        <button class="preset-btn fraud"     onclick="loadPreset('fraud')">🚨 Fraud</button>
+        <button class="preset-btn legit"     onclick="loadPreset('legit')">✅ Legit</button>
+        <button class="preset-btn uncertain" onclick="loadPreset('uncertain')">⚠️ Uncertain</button>
+      </div>
+
+      <form id="tx-form" onsubmit="return false;">
+        <div class="form-grid">
+
+          <!-- Amount -->
+          <div class="form-group">
+            <label>Amount (USD) <span class="hint">0 – 1,000,000</span></label>
+            <input type="number" id="amount" value="2500.00" min="0" max="1000000" step="0.01" />
+          </div>
+
+          <!-- Hour -->
+          <div class="form-group">
+            <label>Hour of Day <span class="hint">0 – 23 UTC</span></label>
+            <input type="number" id="hour" value="3" min="0" max="23" step="1" />
+          </div>
+
+          <!-- Country mismatch -->
+          <div class="form-group">
+            <label>Country Mismatch</label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn" id="cm-0" onclick="setToggle('country_mismatch', 0)">0 — No</button>
+              <button type="button" class="toggle-btn active" id="cm-1" onclick="setToggle('country_mismatch', 1)">1 — Yes</button>
+            </div>
+            <input type="hidden" id="country_mismatch" value="1" />
+          </div>
+
+          <!-- New account -->
+          <div class="form-group">
+            <label>New Account</label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn" id="na-0" onclick="setToggle('new_account', 0)">0 — No</button>
+              <button type="button" class="toggle-btn active" id="na-1" onclick="setToggle('new_account', 1)">1 — Yes</button>
+            </div>
+            <input type="hidden" id="new_account" value="1" />
+          </div>
+
+          <!-- Device age -->
+          <div class="form-group">
+            <label>Device Age <span class="hint">days</span></label>
+            <input type="number" id="device_age_days" value="2" min="0" max="3650" step="0.1" />
+          </div>
+
+          <!-- Tx velocity -->
+          <div class="form-group">
+            <label>Tx Last 24h <span class="hint">count</span></label>
+            <input type="number" id="transactions_last_24h" value="28" min="0" max="500" step="1" />
+          </div>
+
+        </div>
+
+        <button class="btn-evaluate" id="eval-btn" onclick="submitTransaction()">
+          <div class="spinner" id="spinner"></div>
+          <span id="btn-text">⚡ Evaluate Transaction</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Model info card -->
+    <div class="card" style="margin-top:16px;" id="model-info-card">
+      <div class="card-title">Model Info</div>
+      <div id="model-info-content" style="color:var(--text-dim);font-size:0.8rem;">
+        Loading model metrics...
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: Result panel ───────────────────────────────────────────── -->
+  <div>
+    <div id="error-banner">
+      <strong>⚠️ Connection Error</strong>
+      <span id="error-msg"></span>
+    </div>
+
+    <div id="result-panel">
+      <div class="card">
+        <!-- Decision banner -->
+        <div id="decision-banner" class="decision-banner">
+          <div class="decision-icon" id="decision-icon"></div>
+          <div>
+            <div class="decision-label" id="decision-label"></div>
+            <div class="decision-sub" id="decision-sub"></div>
+          </div>
+          <div class="decision-cost">
+            <div class="cost-val" id="cost-val"></div>
+            <div class="cost-label">signals cost</div>
+          </div>
+        </div>
+
+        <!-- Probability bar -->
+        <div class="prob-section">
+          <div class="prob-labels">
+            <span>Fraud Probability</span>
+            <span class="prob-value" id="prob-value"></span>
+          </div>
+          <div class="prob-bar-track">
+            <div class="prob-bar-fill" id="prob-bar"></div>
+          </div>
+        </div>
+
+        <!-- Metrics row -->
+        <div class="metrics-row">
+          <div class="metric-box">
+            <div class="metric-val" id="m-uncertainty"></div>
+            <div class="metric-lbl">Uncertainty</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="m-signals"></div>
+            <div class="metric-lbl">Signals Bought</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="m-elapsed"></div>
+            <div class="metric-lbl">Eval Time</div>
+          </div>
+        </div>
+
+        <!-- Signals purchased -->
+        <div class="signals-section">
+          <div class="signals-header">
+            Signals Purchased
+            <span class="signals-count" id="signals-count">0</span>
+          </div>
+          <div id="signals-list"></div>
+        </div>
+
+        <!-- Reasoning -->
+        <div class="reasoning-section">
+          <div class="signals-header" style="margin-bottom:10px;">Agent Reasoning</div>
+          <div class="reasoning-text" id="reasoning-text"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="empty-state" class="card empty-state">
+      <div class="icon">🔍</div>
+      <p>Submit a transaction to see the agent's fraud evaluation and signal purchase decisions.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  FraudSignal Agent &mdash; Built for
+  <a href="https://stellarhacks.devpost.com" target="_blank">Stellar Hacks: Agents 2026</a>
+  &mdash; Powered by XGBoost + x402 + Stellar Testnet
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
