@@ -1,0 +1,16 @@
+{
+  "arms": {
+    "ip-reputation": {
+      "alpha": 1,
+      "beta": 2
+    },
+    "device-history": {
+      "alpha": 1,
+      "beta": 2
+    },
+    "tx-velocity": {
+      "alpha": 1,
+      "beta": 3
+    }
+  }
+}

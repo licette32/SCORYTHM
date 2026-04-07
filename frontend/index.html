@@ -467,6 +467,86 @@
       border-radius: 10px;
     }
 
+    .signal-voi {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--accent);
+      background: rgba(88,166,255,0.1);
+      border: 1px solid rgba(88,166,255,0.2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .signal-bandit {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--purple);
+      background: rgba(188,140,255,0.1);
+      border: 1px solid rgba(188,140,255,0.2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* ── Agent Learning section ─────────────────────────────────────────── */
+    .learning-section { margin-bottom: 20px; }
+    .learning-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .bandit-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .bandit-card:last-child { margin-bottom: 0; }
+    .bandit-signal-name {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .bandit-stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .bandit-stat {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .bandit-stat strong {
+      font-family: var(--mono);
+      color: var(--text);
+    }
+    .bandit-bar-track {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .bandit-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--purple));
+      border-radius: 3px;
+      transition: width 0.5s;
+    }
+    .no-learning {
+      color: var(--text-dim);
+      font-size: 0.82rem;
+      font-style: italic;
+      padding: 10px 0;
+    }
+
     /* ── Reasoning ───────────────────────────────────────────────────── */
     .reasoning-section { margin-bottom: 0; }
     .reasoning-text {
@@ -609,7 +689,7 @@
 
     <!-- Model info card -->
     <div class="card" style="margin-top:16px;" id="model-info-card">
-      <div class="card-title">Model Info</div>
+      <div class="card-title">Model & Agent Info</div>
       <div id="model-info-content" style="color:var(--text-dim);font-size:0.8rem;">
         Loading model metrics...
       </div>
@@ -638,7 +718,7 @@
           </div>
         </div>
 
-        <!-- Probability bar -->
+        <!-- Probability bar with confidence interval -->
         <div class="prob-section">
           <div class="prob-labels">
             <span>Fraud Probability</span>
@@ -647,6 +727,24 @@
           <div class="prob-bar-track">
             <div class="prob-bar-fill" id="prob-bar"></div>
           </div>
+          <!-- Confidence interval visualization -->
+          <div class="ci-section" id="ci-section" style="margin-top:8px;">
+            <div class="ci-labels" style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-dim);margin-bottom:4px;">
+              <span>Confidence Interval</span>
+              <span id="ci-values"></span>
+            </div>
+            <div class="ci-track" style="height:20px;background:var(--bg);border:1px solid var(--border);border-radius:4px;position:relative;overflow:hidden;">
+              <!-- CI fill -->
+              <div class="ci-fill" id="ci-fill" style="position:absolute;top:0;height:100%;background:rgba(188,140,255,0.3);transition:left 0.5s, width 0.5s;"></div>
+              <!-- Point estimate marker -->
+              <div class="ci-marker" id="ci-marker" style="position:absolute;top:2px;bottom:2px;width:4px;background:var(--purple);border-radius:2px;transition:left 0.5s;box-shadow:0 0 6px var(--purple);"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.62rem;color:var(--text-dim);margin-top:2px;">
+              <span>0%</span><span>50%</span><span>100%</span>
+            </div>
+          </div>
+          <!-- Risk zone indicator -->
+          <div id="risk-zone" style="margin-top:8px;font-size:0.72rem;padding:6px 10px;border-radius:4px;display:inline-block;"></div>
         </div>
 
         <!-- Metrics row -->
@@ -672,6 +770,14 @@
             <span class="signals-count" id="signals-count">0</span>
           </div>
           <div id="signals-list"></div>
+        </div>
+
+        <!-- Agent Learning -->
+        <div class="learning-section" id="learning-section" style="display:none;">
+          <div class="learning-header">
+            Agent Learning (Thompson Sampling)
+          </div>
+          <div id="bandit-stats"></div>
         </div>
 
         <!-- Reasoning -->

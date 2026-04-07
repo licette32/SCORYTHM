@@ -256,18 +256,18 @@ def train_model():
     ap = average_precision_score(y_test, y_prob)
     brier = brier_score_loss(y_test, y_prob)
 
-    print("\n" + "─" * 60)
+    print("\n" + "-" * 60)
     print(f"  ROC-AUC Score        : {auc:.4f}  (target > 0.80)")
     print(f"  Average Precision    : {ap:.4f}")
-    print(f"  Brier Score (lower↓) : {brier:.4f}")
-    print("─" * 60)
+    print(f"  Brier Score (lower)  : {brier:.4f}")
+    print("-" * 60)
     print("\nClassification Report (threshold=0.5):")
     print(classification_report(y_test, y_pred, target_names=["Legitimate", "Fraud"]))
 
     if auc < 0.80:
-        print("⚠️  WARNING: AUC below 0.80 — consider increasing N_SAMPLES or tuning hyperparameters.")
+        print("WARNING: AUC below 0.80 - consider increasing N_SAMPLES or tuning hyperparameters.")
     else:
-        print(f"✅  AUC = {auc:.4f} — model meets quality threshold.")
+        print(f"AUC = {auc:.4f} - model meets quality threshold.")
 
     # ── Save model ────────────────────────────────────────────────────────────
     model_dir = os.path.dirname(os.path.abspath(__file__))
@@ -287,7 +287,7 @@ def train_model():
     with open(model_path, "wb") as f:
         pickle.dump(model_artifact, f)
 
-    print(f"\n💾 Model saved to: {model_path}")
+    print(f"\nSaved model to: {model_path}")
     print("=" * 60)
 
     return model_artifact

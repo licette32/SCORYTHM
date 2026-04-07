@@ -31,7 +31,7 @@ from fastapi.responses import JSONResponse
 import time
 
 from api.schemas import Transaction, EvaluationResult, HealthResponse
-from agent.agent import evaluate_transaction
+from agent.agent import evaluate_transaction, _get_bandit
 from model.predict import get_model_metrics
 
 # ─── App initialization ───────────────────────────────────────────────────────
@@ -133,10 +133,9 @@ async def evaluate(transaction: Transaction) -> EvaluationResult:
     tags=["System"],
 )
 async def health() -> HealthResponse:
-    """Returns the API health status and model information."""
+    """Returns the API health status, model information, and bandit stats."""
     global _model_ready, _model_metrics
 
-    # Try to load metrics if not already loaded
     if not _model_ready:
         try:
             _model_metrics = get_model_metrics()
@@ -144,11 +143,21 @@ async def health() -> HealthResponse:
         except Exception:
             pass
 
+    # Get bandit stats from the agent's global bandit instance
+    bandit_stats = {}
+    try:
+        bandit = _get_bandit()
+        for signal_name in ["ip-reputation", "device-history", "tx-velocity"]:
+            bandit_stats[signal_name] = bandit.get_stats(signal_name)
+    except Exception as e:
+        print(f"[health] Could not load bandit stats: {e}")
+
     return HealthResponse(
         status="ok",
         service="FraudSignal Agent API",
         model_loaded=_model_ready,
         model_metrics=_model_metrics if _model_metrics else None,
+        bandit_stats=bandit_stats if bandit_stats else None,
         version="1.0.0",
     )
 

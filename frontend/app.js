@@ -35,12 +35,12 @@ const PRESETS = {
     transactions_last_24h: 2,
   },
   uncertain: {
-    amount: 380.0,
-    hour: 21,
+    amount: 50.0,
+    hour: 0,
     country_mismatch: 1,
     new_account: 0,
-    device_age_days: 35.0,
-    transactions_last_24h: 9,
+    device_age_days: 30.0,
+    transactions_last_24h: 5,
   },
 };
 
@@ -184,13 +184,35 @@ function renderResult(data) {
 
   const bar = document.getElementById("prob-bar");
   bar.className = `prob-bar-fill ${decision}`;
-  // Trigger animation: reset to 0 first, then set target
   bar.style.width = "0%";
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       bar.style.width = `${pct}%`;
     });
   });
+
+  // ── Confidence Interval ─────────────────────────────────────────────────
+  const confLow = data.conf_low || 0;
+  const confHigh = data.conf_high || 0;
+  const ciFill = document.getElementById("ci-fill");
+  const ciMarker = document.getElementById("ci-marker");
+  const ciValues = document.getElementById("ci-values");
+
+  ciFill.style.left = `${confLow * 100}%`;
+  ciFill.style.width = `${(confHigh - confLow) * 100}%`;
+  ciMarker.style.left = `${data.prob_fraud * 100}%`;
+  ciValues.textContent = `[${(confLow * 100).toFixed(0)}%, ${(confHigh * 100).toFixed(0)}%]`;
+
+  // ── Risk zone ────────────────────────────────────────────────────────────
+  const riskZone = document.getElementById("risk-zone");
+  const riskZoneData = data.risk_zone || "UNKNOWN";
+  const riskColors = {
+    RISKY: "background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);color:var(--red);",
+    SAFE: "background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);color:var(--green);",
+    AMBIGUOUS: "background:rgba(210,153,34,0.1);border:1px solid rgba(210,153,34,0.3);color:var(--yellow);",
+  };
+  riskZone.style.cssText = riskColors[riskZoneData] || riskColors.AMBIGUOUS;
+  riskZone.textContent = `Zone: ${riskZoneData}`;
 
   // ── Metrics ──────────────────────────────────────────────────────────────
   document.getElementById("m-uncertainty").textContent =
@@ -206,13 +228,57 @@ function renderResult(data) {
   document.getElementById("signals-count").textContent = data.signals_purchased.length;
   renderSignals(data.signals_purchased);
 
+  // ── Agent Learning (fetch from health endpoint) ───────────────────────────
+  fetchBanditStats();
+
   // ── Reasoning ────────────────────────────────────────────────────────────
   const reasoningEl = document.getElementById("reasoning-text");
-  // Format reasoning: split by " | " and put each step on its own line
   const steps = data.reasoning.split(" | ");
   reasoningEl.innerHTML = steps
     .map((step, i) => `<span class="step">[${i + 1}]</span> ${escapeHtml(step)}`)
     .join("\n");
+}
+
+// ─── Fetch and render bandit stats ────────────────────────────────────────────
+async function fetchBanditStats() {
+  const section = document.getElementById("learning-section");
+  const container = document.getElementById("bandit-stats");
+
+  try {
+    const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) throw new Error("Failed");
+
+    const data = await res.json();
+    const banditData = data.bandit_stats;
+
+    if (!banditData || Object.keys(banditData).length === 0) {
+      section.style.display = "block";
+      container.innerHTML = `<div class="no-learning">No learning data yet — agent will learn as it evaluates transactions.</div>`;
+      return;
+    }
+
+    section.style.display = "block";
+    container.innerHTML = Object.entries(banditData).map(([signalName, stats]) => {
+      const successRate = (stats.success_rate * 100).toFixed(0);
+      return `
+        <div class="bandit-card">
+          <div class="bandit-signal-name">${escapeHtml(signalName)}</div>
+          <div class="bandit-stats">
+            <div class="bandit-stat">alpha: <strong>${stats.alpha}</strong></div>
+            <div class="bandit-stat">beta: <strong>${stats.beta}</strong></div>
+            <div class="bandit-stat">trials: <strong>${stats.n_trials}</strong></div>
+            <div class="bandit-stat">success rate: <strong>${successRate}%</strong></div>
+          </div>
+          <div class="bandit-bar-track">
+            <div class="bandit-bar-fill" style="width:${successRate}%;"></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (_) {
+    section.style.display = "none";
+  }
 }
 
 // ─── Render signals ───────────────────────────────────────────────────────────
@@ -239,6 +305,14 @@ function renderSignals(signals) {
       ? `<span class="offline-badge">📡 simulated</span>`
       : "";
 
+    const voiBadge = sig.voi !== undefined
+      ? `<span class="signal-voi">VOI: ${sig.voi >= 0 ? "+" : ""}${(sig.voi * 100).toFixed(1)}%</span>`
+      : "";
+
+    const banditBadge = sig.bandit_priority !== undefined
+      ? `<span class="signal-bandit">prio: ${sig.bandit_priority.toFixed(2)}</span>`
+      : "";
+
     const errorNote = sig.error
       ? `<div style="font-size:0.7rem;color:var(--yellow);margin-top:6px;">⚠️ ${escapeHtml(sig.error)}</div>`
       : "";
@@ -250,6 +324,8 @@ function renderSignals(signals) {
         <div class="signal-header">
           <span class="signal-name">${escapeHtml(sig.signal_name)}</span>
           <span class="signal-cost">$${sig.cost_usd.toFixed(3)}</span>
+          ${voiBadge}
+          ${banditBadge}
           ${offlineBadge}
           <span class="signal-adj ${adjClass}">${adjText}</span>
         </div>

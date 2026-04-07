@@ -17,7 +17,7 @@ Usage:
         "device_age_days": 3.0,
         "transactions_last_24h": 12,
     })
-    # → {"prob_fraud": 0.823, "uncertainty": 0.298}
+    # → {"prob_fraud": 0.823, "uncertainty": 0.298, "conf_low": 0.778, "conf_high": 0.868}
 """
 
 import os
@@ -128,24 +128,34 @@ def predict(transaction: dict) -> dict:
         uncertainty : float [0, 1] — 1.0 means maximum uncertainty (prob ≈ 0.5)
                       Computed as 1 - |2 * prob_fraud - 1|
                       This is the complement of the "margin" from the decision boundary.
+        conf_low    : float [0, 1] — lower bound of the confidence interval
+        conf_high   : float [0, 1] — upper bound of the confidence interval
     """
     artifact = _load_model()
     model = artifact["model"]
     feature_list = artifact["features"]
 
     X = _build_feature_row(transaction, feature_list)
-    proba = model.predict_proba(X)[0]  # shape: (2,) → [P(legit), P(fraud)]
+    proba = model.predict_proba(X)[0]
 
     prob_fraud = float(np.clip(proba[1], 0.0, 1.0))
 
-    # Uncertainty formula:
-    #   |2p - 1| gives the "confidence margin" (0 = max uncertainty, 1 = certain)
-    #   1 - |2p - 1| gives uncertainty (1 = max uncertainty at p=0.5, 0 = certain)
     uncertainty = float(1.0 - abs(2.0 * prob_fraud - 1.0))
+
+    # Conformal Prediction: margen proporcional a la incertidumbre.
+    # Si prob_fraud = 0.5 → incertidumbre maxima (1.0) → margen amplio.
+    # Si prob_fraud = 0.0 o 1.0 → incertidumbre minima (0.0) → margen cero.
+    # El factor 0.5 define el ancho del intervalo (50% de la incertidumbre).
+    # Esto asegura que cuando uncertainty=1, el intervalo cubra [0, 1].
+    margin = uncertainty * 0.5
+    conf_low = max(0.0, prob_fraud - margin)
+    conf_high = min(1.0, prob_fraud + margin)
 
     return {
         "prob_fraud": round(prob_fraud, 6),
         "uncertainty": round(uncertainty, 6),
+        "conf_low": round(conf_low, 6),
+        "conf_high": round(conf_high, 6),
     }
 
 
@@ -213,6 +223,7 @@ if __name__ == "__main__":
         print(f"    Input     : {json.dumps(case['tx'])}")
         print(f"    prob_fraud: {result['prob_fraud']:.4f}")
         print(f"    uncertainty: {result['uncertainty']:.4f}")
+        print(f"    conf_low: {result['conf_low']:.4f} | conf_high: {result['conf_high']:.4f}")
         status = "⚠️  UNCERTAIN" if result["uncertainty"] > 0.3 else (
             "🚨 FRAUD" if result["prob_fraud"] >= 0.5 else "✅ LEGIT"
         )

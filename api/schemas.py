@@ -119,6 +119,14 @@ class SignalPurchase(BaseModel):
         default=0.0,
         description="How much this signal shifted the fraud probability",
     )
+    voi: float = Field(
+        default=0.0,
+        description="Value of Information (VOI) of this signal at purchase time",
+    )
+    bandit_priority: float = Field(
+        default=0.5,
+        description="Thompson Sampling priority score for this signal",
+    )
     error: Optional[str] = Field(
         default=None,
         description="Error message if the signal fetch failed",
@@ -150,6 +158,23 @@ class EvaluationResult(BaseModel):
             "1.0 = maximum uncertainty (prob ≈ 0.5), "
             "0.0 = maximum certainty"
         ),
+    )
+
+    conf_low: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Lower bound of the 95% confidence interval for prob_fraud",
+    )
+
+    conf_high: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Upper bound of the 95% confidence interval for prob_fraud",
+    )
+
+    risk_zone: str = Field(
+        description="Risk classification: RISKY (conf_low>0.5), SAFE (conf_high<0.2), AMBIGUOUS (otherwise)",
+        pattern="^(RISKY|SAFE|AMBIGUOUS)$",
     )
 
     decision: str = Field(
@@ -194,6 +219,9 @@ class EvaluationResult(BaseModel):
                 {
                     "prob_fraud": 0.823,
                     "uncertainty": 0.354,
+                    "conf_low": 0.778,
+                    "conf_high": 0.868,
+                    "risk_zone": "RISKY",
                     "decision": "FRAUD",
                     "signals_purchased": [
                         {
@@ -206,8 +234,9 @@ class EvaluationResult(BaseModel):
                             },
                             "simulated_tx_hash": "a3f8c2d1e4b7a9f0" + "0" * 48,
                             "latency_ms": 12.4,
-                            "prob_adjustment": 0.0823,
-                            "error": None,
+                    "prob_adjustment": 0.0823,
+                    "voi": 0.0345,
+                    "error": None,
                             "offline_simulation": False,
                         }
                     ],
@@ -233,5 +262,9 @@ class HealthResponse(BaseModel):
     model_metrics: Optional[dict[str, float]] = Field(
         default=None,
         description="Validation metrics from training (roc_auc, etc.)",
+    )
+    bandit_stats: Optional[dict[str, dict]] = Field(
+        default=None,
+        description="Thompson Sampling bandit statistics per signal (alpha, beta, success_rate, n_trials)",
     )
     version: str = Field(default="1.0.0")
