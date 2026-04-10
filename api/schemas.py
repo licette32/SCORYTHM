@@ -108,8 +108,8 @@ class SignalPurchase(BaseModel):
         default=None,
         description="Signal payload returned by the server",
     )
-    simulated_tx_hash: str = Field(
-        description="Simulated Stellar transaction hash (64-char hex string)"
+    tx_hash: str = Field(
+        description="Real Stellar testnet transaction hash for the x402 payment"
     )
     latency_ms: float = Field(
         default=0.0,
@@ -177,6 +177,11 @@ class EvaluationResult(BaseModel):
         pattern="^(RISKY|SAFE|AMBIGUOUS)$",
     )
 
+    voi_scores: Optional[dict[str, float]] = Field(
+        default=None,
+        description="VOI scores for all signals when in ambiguous zone",
+    )
+
     decision: str = Field(
         description="Final decision: FRAUD, LEGITIMATE, or UNCERTAIN",
         pattern="^(FRAUD|LEGITIMATE|UNCERTAIN)$",
@@ -222,6 +227,11 @@ class EvaluationResult(BaseModel):
                     "conf_low": 0.778,
                     "conf_high": 0.868,
                     "risk_zone": "RISKY",
+                    "voi_scores": {
+                        "ip-reputation": 0.2450,
+                        "device-history": 0.3120,
+                        "tx-velocity": 0.2890,
+                    },
                     "decision": "FRAUD",
                     "signals_purchased": [
                         {
@@ -263,8 +273,8 @@ class HealthResponse(BaseModel):
         default=None,
         description="Validation metrics from training (roc_auc, etc.)",
     )
-    bandit_stats: Optional[dict[str, dict]] = Field(
+    bandit_state: Optional[dict[str, dict]] = Field(
         default=None,
-        description="Thompson Sampling bandit statistics per signal (alpha, beta, success_rate, n_trials)",
+        description="Thompson Sampling bandit state per signal (alpha, beta, expected_value, n_trials)",
     )
     version: str = Field(default="1.0.0")

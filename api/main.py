@@ -144,11 +144,11 @@ async def health() -> HealthResponse:
             pass
 
     # Get bandit stats from the agent's global bandit instance
-    bandit_stats = {}
+    bandit_state = {}
     try:
         bandit = _get_bandit()
         for signal_name in ["ip-reputation", "device-history", "tx-velocity"]:
-            bandit_stats[signal_name] = bandit.get_stats(signal_name)
+            bandit_state[signal_name] = bandit.get_stats(signal_name)
     except Exception as e:
         print(f"[health] Could not load bandit stats: {e}")
 
@@ -157,7 +157,7 @@ async def health() -> HealthResponse:
         service="FraudSignal Agent API",
         model_loaded=_model_ready,
         model_metrics=_model_metrics if _model_metrics else None,
-        bandit_stats=bandit_stats if bandit_stats else None,
+        bandit_state=bandit_state if bandit_state else None,
         version="1.0.0",
     )
 

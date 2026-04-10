@@ -357,7 +357,7 @@ def _build_reasoning(
             lines.append(
                 f"  Signal {i}: {sig['signal_name']} "
                 f"(cost=${sig['cost_usd']:.3f}, VOI={voi:.4f}, "
-                f"tx={sig['simulated_tx_hash'][:12]}...) "
+                f"tx={sig['tx_hash'][:12] if sig['tx_hash'] else 'N/A'}...) "
                 f"→ prob adjustment: {direction}{abs(adj):.4f}"
             )
         lines.append(
@@ -476,7 +476,7 @@ def evaluate_transaction(transaction: dict) -> dict:
                     "signal_name": best_signal,
                     "cost_usd": cost,
                     "data": signal_result.get("data"),
-                    "simulated_tx_hash": signal_result["simulated_tx_hash"],
+                    "tx_hash": signal_result.get("tx_hash") or "N/A",
                     "latency_ms": signal_result.get("latency_ms", 0.0),
                     "prob_adjustment": round(prob_adjustment, 6),
                     "error": signal_result.get("error"),
@@ -503,7 +503,12 @@ def evaluate_transaction(transaction: dict) -> dict:
         # Save bandit state
         _save_bandit()
 
-    # ── Step 6: Final decision ────────────────────────────────────────────────
+    # ── Step 6: Compute VOI scores for all signals ───────────────────────────
+    voi_scores = {}
+    if in_ambiguous_zone:
+        voi_scores = compute_all_voi_scores(initial_prob, available_signals)
+
+    # ── Step 7: Final decision ────────────────────────────────────────────────
     final_uncertainty = calculate_uncertainty(current_prob)
     decision = _make_decision(current_prob, signals_purchased)
 
@@ -527,6 +532,7 @@ def evaluate_transaction(transaction: dict) -> dict:
         "conf_low": round(initial_conf_low, 6),
         "conf_high": round(initial_conf_high, 6),
         "risk_zone": risk_zone,
+        "voi_scores": voi_scores,
         "decision": decision,
         "signals_purchased": signals_purchased,
         "total_cost": round(total_cost, 6),

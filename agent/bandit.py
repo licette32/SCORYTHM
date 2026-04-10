@@ -121,10 +121,12 @@ class ThompsonBandit:
         self.init_arm(signal_name)
         arm = self._arms[signal_name]
         total = arm["alpha"] + arm["beta"]
+        expected_value = arm["alpha"] / total if total > 0 else 0.5
         return {
             "alpha": arm["alpha"],
             "beta": arm["beta"],
-            "success_rate": arm["alpha"] / total if total > 0 else 0.5,
+            "success_rate": expected_value,
+            "expected_value": round(expected_value, 4),
             "n_trials": total,
         }
 

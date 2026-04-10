@@ -2,15 +2,15 @@
   "arms": {
     "ip-reputation": {
       "alpha": 1,
-      "beta": 2
+      "beta": 4
     },
     "device-history": {
       "alpha": 1,
-      "beta": 2
+      "beta": 3
     },
     "tx-velocity": {
       "alpha": 1,
-      "beta": 3
+      "beta": 4
     }
   }
 }

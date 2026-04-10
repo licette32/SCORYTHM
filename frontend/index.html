@@ -430,6 +430,9 @@
     .signal-adj.pos { color: var(--red); }
     .signal-adj.neg { color: var(--green); }
     .signal-adj.neu { color: var(--text-muted); }
+    .signal-tx-section {
+      margin-bottom: 8px;
+    }
     .signal-tx {
       font-family: var(--mono);
       font-size: 0.68rem;
@@ -438,10 +441,29 @@
       background: rgba(0,0,0,0.3);
       padding: 6px 10px;
       border-radius: 4px;
-      margin-bottom: 8px;
       border: 1px solid var(--border);
     }
     .signal-tx span { color: var(--text-muted); }
+    .signal-tx a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .signal-tx a:hover { text-decoration: underline; }
+    .signal-stellar-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      color: var(--accent);
+      background: rgba(88,166,255,0.1);
+      border: 1px solid rgba(88,166,255,0.3);
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin-top: 6px;
+      transition: background 0.15s;
+    }
+    .signal-stellar-link:hover { background: rgba(88,166,255,0.2); }
     .signal-data {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

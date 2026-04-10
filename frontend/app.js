@@ -249,7 +249,7 @@ async function fetchBanditStats() {
     if (!res.ok) throw new Error("Failed");
 
     const data = await res.json();
-    const banditData = data.bandit_stats;
+    const banditData = data.bandit_state;
 
     if (!banditData || Object.keys(banditData).length === 0) {
       section.style.display = "block";
@@ -259,7 +259,7 @@ async function fetchBanditStats() {
 
     section.style.display = "block";
     container.innerHTML = Object.entries(banditData).map(([signalName, stats]) => {
-      const successRate = (stats.success_rate * 100).toFixed(0);
+      const expectedValue = (stats.expected_value * 100).toFixed(1);
       return `
         <div class="bandit-card">
           <div class="bandit-signal-name">${escapeHtml(signalName)}</div>
@@ -267,10 +267,10 @@ async function fetchBanditStats() {
             <div class="bandit-stat">alpha: <strong>${stats.alpha}</strong></div>
             <div class="bandit-stat">beta: <strong>${stats.beta}</strong></div>
             <div class="bandit-stat">trials: <strong>${stats.n_trials}</strong></div>
-            <div class="bandit-stat">success rate: <strong>${successRate}%</strong></div>
+            <div class="bandit-stat">E[success]: <strong>${expectedValue}%</strong></div>
           </div>
           <div class="bandit-bar-track">
-            <div class="bandit-bar-fill" style="width:${successRate}%;"></div>
+            <div class="bandit-bar-fill" style="width:${expectedValue}%;"></div>
           </div>
         </div>
       `;
@@ -317,6 +317,19 @@ function renderSignals(signals) {
       ? `<div style="font-size:0.7rem;color:var(--yellow);margin-top:6px;">⚠️ ${escapeHtml(sig.error)}</div>`
       : "";
 
+    const txHash = sig.tx_hash && sig.tx_hash !== 'N/A' ? sig.tx_hash : null;
+    const txSection = txHash
+      ? `<div class="signal-tx-section">
+           <div class="signal-tx"><span>TX:</span> <a href="https://stellar.expert/explorer/testnet/tx/${txHash}" target="_blank" rel="noopener">${escapeHtml(txHash.slice(0, 16))}...${escapeHtml(txHash.slice(-8))}</a></div>
+           <a href="https://stellar.expert/explorer/testnet/tx/${txHash}" target="_blank" rel="noopener" class="signal-stellar-link">
+             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+             </svg>
+             View on Stellar Expert
+           </a>
+         </div>`
+      : '';
+
     const dataHtml = renderSignalData(sig.signal_name, sig.data);
 
     return `
@@ -329,9 +342,7 @@ function renderSignals(signals) {
           ${offlineBadge}
           <span class="signal-adj ${adjClass}">${adjText}</span>
         </div>
-        <div class="signal-tx">
-          <span>TX:</span> ${escapeHtml(sig.simulated_tx_hash)}
-        </div>
+        ${txSection}
         ${dataHtml}
         ${errorNote}
       </div>
