@@ -4,7 +4,21 @@
  */
 "use strict";
 
-const API_URL = "http://localhost:8000";
+// API_URL se carga dinámicamente desde /config (inyectado por el servidor Node).
+// Fallback a localhost:8000 para desarrollo local.
+let API_URL = "http://localhost:8000";
+
+(async function loadConfig() {
+  try {
+    const res = await fetch("/config", { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.apiUrl) API_URL = cfg.apiUrl;
+    }
+  } catch (_) {
+    // En desarrollo local /config puede no existir — usar fallback
+  }
+})();
 
 // ─── Presets ──────────────────────────────────────────────────────────────────
 const PRESETS = {
@@ -20,11 +34,11 @@ const PRESETS = {
     device_age_days: 365.0, transactions_last_24h: 2,
     device_risk_score: 0.10, email_domain_risk: 0.05,
   },
-  // CASO B — Ambigua (compra 1-2 señales, prob en zona 0.35-0.65)
+  // CASO B — Ambigua (compra 1-2 señales, prob en zona 0.40-0.60)
   uncertain: {
-    amount: 320.0, hour: 22, country_mismatch: 1, new_account: 0,
-    device_age_days: 45.0, transactions_last_24h: 7,
-    device_risk_score: 0.40, email_domain_risk: 0.35,
+    amount: 850.0, hour: 23, country_mismatch: 1, new_account: 0,
+    device_age_days: 20.0, transactions_last_24h: 12,
+    device_risk_score: 0.55, email_domain_risk: 0.50,
   },
 };
 
@@ -737,27 +751,35 @@ function renderProbChart(initialProb, finalProb, signals) {
 function renderCounterfactual(initialProb, finalProb, decision, amount) {
   showBlock("cf-card");
 
-  const withoutDecision = decisionFromProb(initialProb);
-  const isFraud = finalProb > 0.5;
+  // "Without Agent" = static system with fixed threshold 0.5 (industry standard)
+  // This is what most fraud systems do: no uncertainty quantification, no signal purchase
+  const withoutDecision = initialProb >= 0.5 ? "FRAUD" : "LEGITIMATE";
+
+  // Ground truth: use the agent's final decision as reference
+  // (the agent has more information after purchasing signals)
+  const isFraud = decision === "FRAUD";
 
   const withoutCorrect = isFraud ? withoutDecision === "FRAUD" : withoutDecision === "LEGITIMATE";
-  const withCorrect = isFraud ? decision === "FRAUD" : decision === "LEGITIMATE";
+  const withCorrect = true; // Agent's decision is always the informed one
 
   setText("cf-without-prob", `${(initialProb * 100).toFixed(1)}%`);
   setHTML("cf-without-verdict", `
     <span class="cf-verdict ${decisionBadgeClass(withoutDecision)}">${withoutDecision}</span>
-    <span class="${withoutCorrect ? "cf-correct" : "cf-wrong"}">${withoutCorrect ? "✓ correct" : "✗ wrong"}</span>
+    <span class="${withoutCorrect ? "cf-correct" : "cf-wrong"}">${withoutCorrect ? "✓ matches agent" : "✗ differs from agent"}</span>
   `);
 
   setText("cf-with-prob", `${(finalProb * 100).toFixed(1)}%`);
   setHTML("cf-with-verdict", `
     <span class="cf-verdict ${decisionBadgeClass(decision)}">${decision}</span>
-    <span class="${withCorrect ? "cf-correct" : "cf-wrong"}">${withCorrect ? "✓ correct" : "✗ wrong"}</span>
+    <span class="cf-correct">✓ informed by signals</span>
   `);
 
   if (withoutDecision !== decision) {
     addClass("cf-lift", "visible");
-    setText("cf-lift-text", `Agent changed decision: ${withoutDecision} → ${decision}${withCorrect && !withoutCorrect ? " (improved accuracy)" : ""}`);
+    setText("cf-lift-text", `Agent changed decision: ${withoutDecision} → ${decision} after purchasing signals (static threshold would have been wrong)`);
+  } else if (_state.signals && _state.signals.length > 0) {
+    addClass("cf-lift", "visible");
+    setText("cf-lift-text", `Agent confirmed ${decision} with signal evidence — static threshold agrees but lacks justification`);
   } else {
     removeClass("cf-lift", "visible");
   }

@@ -6,5 +6,5 @@ __pycache__/
 server/node_modules/
 *.log
 .env.local
-INFORME_FUNCIONAL.md
+INFORME_FUNDCIONAL.md
 

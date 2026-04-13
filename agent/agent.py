@@ -463,11 +463,11 @@ def evaluate_transaction(transaction: dict) -> dict:
             )
 
             # Compute risk_hint from current probability to guide signal server pool.
-            # In ambiguous zone (0.35-0.65) always use "neutral" so the signal data
-            # reflects genuine uncertainty — not artificially low or high risk.
-            if current_prob >= 0.60:
+            # Use "high" when prob > 0.50 (leaning fraud), "low" when < 0.40 (leaning legit),
+            # "neutral" only in the middle band (0.40-0.50) where truly uncertain.
+            if current_prob >= 0.50:
                 _risk_hint = "high"
-            elif current_prob < 0.35:
+            elif current_prob < 0.40:
                 _risk_hint = "low"
             else:
                 _risk_hint = "neutral"
@@ -703,9 +703,10 @@ async def evaluate_transaction_stream(transaction: dict) -> AsyncGenerator[dict,
         await asyncio.sleep(0.1)
 
         # Compute risk_hint for streaming version too
-        if current_prob >= 0.60:
+        # Use "high" when prob > 0.50 (leaning fraud), "low" when < 0.40 (leaning legit)
+        if current_prob >= 0.50:
             _stream_risk_hint = "high"
-        elif current_prob < 0.35:
+        elif current_prob < 0.40:
             _stream_risk_hint = "low"
         else:
             _stream_risk_hint = "neutral"

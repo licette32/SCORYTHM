@@ -1,19 +1,41 @@
 services:
+  # ─── Servicio 1: Node.js x402 Signal Server + Frontend ───────────────────────
+  - type: web
+    name: scorythm-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: STELLAR_ADDRESS
+        sync: false   # Completar en Render dashboard
+      - key: SERVER_STELLAR_ADDRESS
+        sync: false   # Completar en Render dashboard
+      - key: IPQS_API_KEY
+        sync: false   # Opcional
+
+  # ─── Servicio 2: Python FastAPI Agent ────────────────────────────────────────
   - type: web
     name: scorythm-api
-    env: python
+    runtime: python
     buildCommand: pip install -r requirements.txt && python model/train.py
     startCommand: python run_server.py
+    healthCheckPath: /health
     envVars:
-      - key: STELLAR_ADDRESS
-        sync: false
-      - key: STELLAR_SECRET
-        sync: false
-      - key: SERVER_STELLAR_ADDRESS
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: IPQS_API_KEY
-        sync: false
       - key: PORT
         value: 8000
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: STELLAR_ADDRESS
+        sync: false   # Completar en Render dashboard
+      - key: STELLAR_SECRET
+        sync: false   # Completar en Render dashboard
+      - key: SERVER_URL
+        sync: false   # URL del servicio scorythm-server en Render
+      - key: ANTHROPIC_API_KEY
+        sync: false   # Opcional — para explicaciones AI

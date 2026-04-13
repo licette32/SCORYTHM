@@ -156,19 +156,19 @@ def _parse_402_response(response: requests.Response) -> dict | None:
         if not accepts:
             return None
 
-        # Prefer USDC over native XLM
+        # Prefer native XLM — no trustline required, always works on testnet
+        xlm_option = next(
+            (a for a in accepts if a.get("asset") in ("native", None, "") or a.get("asset_code") == "XLM"),
+            None,
+        )
         usdc_option = next(
             (a for a in accepts if a.get("asset_code") == "USDC" or
              (a.get("asset") and a.get("asset") not in ("native", "", None) and len(a.get("asset", "")) > 10)),
             None,
         )
-        xlm_option = next(
-            (a for a in accepts if a.get("asset") in ("native", None, "") or a.get("asset_code") == "XLM"),
-            None,
-        )
 
-        # Use USDC if available, else XLM
-        payment_spec = usdc_option or xlm_option or accepts[0]
+        # Use XLM native first (no trustline needed), USDC as fallback
+        payment_spec = xlm_option or usdc_option or accepts[0]
 
         return {
             "scheme": payment_spec.get("scheme"),
@@ -261,7 +261,12 @@ def _submit_stellar_payment(
                  amount.isdigit() and int(amount) > 1000)
     
     if is_native:
-        # Send native XLM (amount is in stroops)
+        # amount may be in stroops (integer string like "10000") or XLM decimal ("0.001")
+        # Stellar SDK expects XLM decimal — convert if needed
+        if amount.isdigit():
+            xlm_decimal = f"{int(amount) / 10_000_000:.7f}"
+        else:
+            xlm_decimal = amount
         transaction = (
             TransactionBuilder(
                 source_account=account,
@@ -271,7 +276,7 @@ def _submit_stellar_payment(
             .append_payment_op(
                 destination=destination_address,
                 asset=Asset.native(),
-                amount=amount,
+                amount=xlm_decimal,
             )
             .set_timeout(30)
             .build()

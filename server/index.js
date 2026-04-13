@@ -27,6 +27,8 @@ const STELLAR_ADDRESS = process.env.STELLAR_ADDRESS || 'GBULNFYDNJNDW2HLRJWVWQDY
 // Server wallet — receives payments (different from agent wallet that pays)
 const SERVER_STELLAR_ADDRESS = process.env.SERVER_STELLAR_ADDRESS || 'GDNIWY6TITEJEUC7O7TTGQME45C2WOILUIVDJZICPC47R43NU5UFJA75';
 const IPQS_API_KEY = process.env.IPQS_API_KEY || '';
+// Python API URL — injected at runtime so the frontend can discover it
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000';
 
 // USDC issuer on Stellar testnet
 const USDC_ISSUER_TESTNET = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
@@ -262,6 +264,14 @@ app.get('/signal/tx-velocity', requirePayment, (req, res) => {
     _payment: req.paymentInfo,
     _asset: req.paymentInfo?.asset === 'native' ? 'XLM' : 'USDC',
     _risk_hint: riskHint,
+  });
+});
+
+// ── Config endpoint — exposes runtime config to the frontend ──────────────────
+app.get('/config', (req, res) => {
+  res.json({
+    apiUrl: PYTHON_API_URL,
+    network: 'stellar:testnet',
   });
 });
 
