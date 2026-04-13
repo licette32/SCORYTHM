@@ -3,827 +3,1552 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FraudSignal Agent — Dashboard</title>
+  <title>SCORYTHM — Fraud Intelligence Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    /* ── Reset & Base ─────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #0d1117;
-      --bg-card:     #161b22;
-      --bg-input:    #0d1117;
-      --border:      #30363d;
-      --border-focus:#58a6ff;
-      --text:        #e6edf3;
-      --text-muted:  #8b949e;
-      --text-dim:    #484f58;
-      --accent:      #58a6ff;
-      --green:       #3fb950;
-      --red:         #f85149;
-      --yellow:      #d29922;
-      --purple:      #bc8cff;
-      --mono:        'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
-      --sans:        -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --radius:      8px;
-      --shadow:      0 4px 24px rgba(0,0,0,0.4);
+      --bg: #0F1117;
+      --bg-card: #161B22;
+      --bg-elevated: #1C2128;
+      --border: #30363D;
+      --border-subtle: #21262D;
+      --copper: #D4A574;
+      --copper-dim: #8B6914;
+      --gold: #F0C040;
+      --ivory: #F0EDE8;
+      --text: #E6EDF3;
+      --text-muted: #8B949E;
+      --text-dim: #484F58;
+      --fraud: #F85149;
+      --fraud-bg: rgba(248,81,73,0.1);
+      --fraud-border: rgba(248,81,73,0.3);
+      --legit: #3FB950;
+      --legit-bg: rgba(63,185,80,0.1);
+      --legit-border: rgba(63,185,80,0.3);
+      --uncertain: #D29922;
+      --uncertain-bg: rgba(210,153,34,0.1);
+      --uncertain-border: rgba(210,153,34,0.3);
+      --blue: #58A6FF;
+      --purple: #BC8CFF;
+      --font-sans: 'Inter', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius: 10px;
     }
 
     html { font-size: 15px; }
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: var(--sans);
+      font-family: var(--font-sans);
       min-height: 100vh;
-      padding: 0 0 60px;
+      line-height: 1.5;
     }
 
-    /* ── Header ──────────────────────────────────────────────────────── */
-    header {
+    /* ── TOP BAR ── */
+    .topbar {
       background: var(--bg-card);
       border-bottom: 1px solid var(--border);
-      padding: 18px 32px;
+      padding: 0 32px;
+      height: 56px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 100;
     }
-    .logo {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, #58a6ff 0%, #bc8cff 100%);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-    }
-    header h1 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-    }
-    header h1 span { color: var(--accent); }
-    .header-badge {
-      margin-left: auto;
-      background: rgba(88,166,255,0.12);
-      border: 1px solid rgba(88,166,255,0.3);
-      color: var(--accent);
-      font-size: 0.72rem;
-      font-family: var(--mono);
-      padding: 3px 10px;
-      border-radius: 20px;
-      letter-spacing: 0.5px;
-    }
-    #api-status {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--text-dim);
-      transition: background 0.3s;
-      flex-shrink: 0;
-    }
-    #api-status.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    #api-status.offline { background: var(--red);   box-shadow: 0 0 6px var(--red); }
 
-    /* ── Layout ──────────────────────────────────────────────────────── */
-    .container {
-      max-width: 1100px;
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+    }
+
+    .topbar-name {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--copper);
+    }
+
+    .topbar-tag {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--legit);
+      box-shadow: 0 0 6px var(--legit);
+    }
+    .status-dot.offline { background: var(--fraud); box-shadow: 0 0 6px var(--fraud); }
+
+    .status-val {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 32px 24px;
+      padding: 28px 32px 80px;
       display: grid;
       grid-template-columns: 420px 1fr;
-      gap: 24px;
+      gap: 28px;
       align-items: start;
     }
-    @media (max-width: 860px) {
-      .container { grid-template-columns: 1fr; }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; padding: 20px 16px 60px; }
     }
 
-    /* ── Card ────────────────────────────────────────────────────────── */
+    /* ── CARD ── */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
-      box-shadow: var(--shadow);
-    }
-    .card-title {
-      font-size: 0.78rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .card-title::before {
-      content: '';
-      display: inline-block;
-      width: 3px; height: 14px;
-      background: var(--accent);
-      border-radius: 2px;
+      padding: 20px 24px;
     }
 
-    /* ── Form ────────────────────────────────────────────────────────── */
+    .card-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    /* ── LEFT PANEL ── */
+    .left-panel { display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── PRESETS ── */
+    .presets { display: flex; gap: 8px; }
+
+    .preset-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .preset-btn:hover { border-color: var(--copper); color: var(--copper); }
+    .preset-btn.active { border-color: var(--copper); color: var(--copper); background: rgba(212,165,116,0.08); }
+    .preset-btn.fraud-preset:hover, .preset-btn.fraud-preset.active { border-color: var(--fraud); color: var(--fraud); background: var(--fraud-bg); }
+    .preset-btn.legit-preset:hover, .preset-btn.legit-preset.active { border-color: var(--legit); color: var(--legit); background: var(--legit-bg); }
+    .preset-btn.uncertain-preset:hover, .preset-btn.uncertain-preset.active { border-color: var(--uncertain); color: var(--uncertain); background: var(--uncertain-bg); }
+
+    /* ── FORM ── */
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      gap: 16px;
     }
+
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group.full { grid-column: 1 / -1; }
 
     label {
-      font-size: 0.78rem;
-      color: var(--text-muted);
+      font-size: 0.75rem;
       font-weight: 500;
+      color: var(--text-muted);
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    label .hint {
-      font-size: 0.68rem;
-      color: var(--text-dim);
-      font-weight: 400;
+
+    .label-badge {
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(88,166,255,0.15);
+      color: var(--blue);
+      font-family: var(--font-mono);
     }
 
-    input[type="number"], input[type="text"], select {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 0.88rem;
-      padding: 9px 12px;
+    .input-wrap { position: relative; display: flex; align-items: center; }
+    .input-prefix {
+      position: absolute;
+      left: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    input[type="number"] {
       width: 100%;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      padding: 10px 12px;
+      transition: border-color 0.15s;
       -moz-appearance: textfield;
     }
-    input::-webkit-outer-spin-button,
-    input::-webkit-inner-spin-button { -webkit-appearance: none; }
-    input:focus, select:focus {
+
+    input.prefixed { padding-left: 24px; }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input:focus { outline: none; border-color: var(--copper); }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
       outline: none;
-      border-color: var(--border-focus);
-      box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+      cursor: pointer;
     }
 
-    .toggle-group {
-      display: flex;
-      gap: 8px;
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--copper);
+      border-radius: 50%;
+      cursor: pointer;
     }
+
+    .range-row { display: flex; align-items: center; gap: 10px; }
+    .range-row input[type="range"] { flex: 1; }
+    .range-val {
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      color: var(--copper);
+      min-width: 28px;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    /* ── TOGGLE ── */
+    .toggle-group { display: flex; gap: 6px; }
+
     .toggle-btn {
       flex: 1;
-      padding: 9px;
+      padding: 9px 8px;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg-input);
-      color: var(--text-muted);
-      font-size: 0.82rem;
-      font-family: var(--mono);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.15s;
       text-align: center;
     }
-    .toggle-btn.active {
-      background: rgba(88,166,255,0.15);
-      border-color: var(--accent);
-      color: var(--accent);
-      font-weight: 600;
-    }
-    .toggle-btn:hover:not(.active) {
-      border-color: var(--text-muted);
-      color: var(--text);
-    }
 
-    /* ── Presets ─────────────────────────────────────────────────────── */
-    .presets {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .preset-btn {
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .preset-btn.fraud  { border-color: rgba(248,81,73,0.4); color: var(--red); }
-    .preset-btn.legit  { border-color: rgba(63,185,80,0.4); color: var(--green); }
-    .preset-btn.uncertain { border-color: rgba(210,153,34,0.4); color: var(--yellow); }
+    .toggle-btn.on { background: var(--fraud-bg); border-color: var(--fraud-border); color: var(--fraud); }
+    .toggle-btn.off { background: var(--legit-bg); border-color: var(--legit-border); color: var(--legit); }
 
-    /* ── Submit button ───────────────────────────────────────────────── */
-    .btn-evaluate {
+    /* ── SUBMIT ── */
+    .btn-eval {
       width: 100%;
       margin-top: 20px;
-      padding: 13px;
-      background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+      padding: 14px;
+      background: var(--copper);
       border: none;
-      border-radius: var(--radius);
-      color: #fff;
-      font-size: 0.92rem;
-      font-weight: 600;
+      border-radius: 8px;
+      color: #0F1117;
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      letter-spacing: 0.2px;
+      gap: 10px;
+      transition: opacity 0.15s;
     }
-    .btn-evaluate:hover:not(:disabled) { opacity: 0.88; }
-    .btn-evaluate:active:not(:disabled) { transform: scale(0.99); }
-    .btn-evaluate:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* ── Spinner ─────────────────────────────────────────────────────── */
+    .btn-eval:hover:not(:disabled) { opacity: 0.88; }
+    .btn-eval:disabled { opacity: 0.4; cursor: not-allowed; }
+
     .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(15,17,23,0.3);
+      border-top-color: #0F1117;
       border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      animation: spin 0.65s linear infinite;
       display: none;
     }
+
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Result panel ────────────────────────────────────────────────── */
-    #result-panel { display: none; }
+    /* ── RIGHT PANEL ── */
+    .right-panel { display: flex; flex-direction: column; gap: 16px; }
 
-    /* ── Decision badge ──────────────────────────────────────────────── */
-    .decision-banner {
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      border: 1px solid;
-    }
-    .decision-banner.FRAUD {
-      background: rgba(248,81,73,0.08);
-      border-color: rgba(248,81,73,0.35);
-    }
-    .decision-banner.LEGITIMATE {
-      background: rgba(63,185,80,0.08);
-      border-color: rgba(63,185,80,0.35);
-    }
-    .decision-banner.UNCERTAIN {
-      background: rgba(210,153,34,0.08);
-      border-color: rgba(210,153,34,0.35);
-    }
-    .decision-icon { font-size: 2rem; line-height: 1; }
-    .decision-label {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-    .decision-banner.FRAUD      .decision-label { color: var(--red); }
-    .decision-banner.LEGITIMATE .decision-label { color: var(--green); }
-    .decision-banner.UNCERTAIN  .decision-label { color: var(--yellow); }
-    .decision-sub {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-    .decision-cost {
-      margin-left: auto;
-      text-align: right;
-    }
-    .decision-cost .cost-val {
-      font-family: var(--mono);
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--purple);
-    }
-    .decision-cost .cost-label {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-    }
-
-    /* ── Probability bar ─────────────────────────────────────────────── */
-    .prob-section { margin-bottom: 20px; }
-    .prob-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-    .prob-value {
-      font-family: var(--mono);
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .prob-bar-track {
-      height: 10px;
-      background: var(--bg);
-      border-radius: 5px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .prob-bar-fill {
-      height: 100%;
-      border-radius: 5px;
-      width: 0%;
-      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .prob-bar-fill.FRAUD      { background: linear-gradient(90deg, #f85149, #ff6b6b); }
-    .prob-bar-fill.LEGITIMATE { background: linear-gradient(90deg, #3fb950, #56d364); }
-    .prob-bar-fill.UNCERTAIN  { background: linear-gradient(90deg, #d29922, #e3b341); }
-
-    /* ── Metrics row ─────────────────────────────────────────────────── */
-    .metrics-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .metric-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
-      text-align: center;
-    }
-    .metric-val {
-      font-family: var(--mono);
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .metric-lbl {
-      font-size: 0.68rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 3px;
-    }
-
-    /* ── Signals section ─────────────────────────────────────────────── */
-    .signals-section { margin-bottom: 20px; }
-    .signals-header {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .signals-count {
-      background: rgba(188,140,255,0.15);
-      color: var(--purple);
-      border-radius: 10px;
-      padding: 1px 8px;
-      font-size: 0.7rem;
-    }
-    .no-signals {
-      color: var(--text-dim);
-      font-size: 0.82rem;
-      font-style: italic;
-      padding: 10px 0;
-    }
-    .signal-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 14px 16px;
-      margin-bottom: 10px;
-      position: relative;
-    }
-    .signal-card:last-child { margin-bottom: 0; }
-    .signal-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .signal-name {
-      font-family: var(--mono);
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--accent);
-    }
-    .signal-cost {
-      font-family: var(--mono);
-      font-size: 0.75rem;
-      color: var(--purple);
-      background: rgba(188,140,255,0.1);
-      border: 1px solid rgba(188,140,255,0.2);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-    .signal-adj {
-      margin-left: auto;
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    .signal-adj.pos { color: var(--red); }
-    .signal-adj.neg { color: var(--green); }
-    .signal-adj.neu { color: var(--text-muted); }
-    .signal-tx-section {
-      margin-bottom: 8px;
-    }
-    .signal-tx {
-      font-family: var(--mono);
-      font-size: 0.68rem;
-      color: var(--text-dim);
-      word-break: break-all;
-      background: rgba(0,0,0,0.3);
-      padding: 6px 10px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-    }
-    .signal-tx span { color: var(--text-muted); }
-    .signal-tx a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .signal-tx a:hover { text-decoration: underline; }
-    .signal-stellar-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.72rem;
-      color: var(--accent);
-      background: rgba(88,166,255,0.1);
-      border: 1px solid rgba(88,166,255,0.3);
-      padding: 4px 10px;
-      border-radius: 12px;
-      text-decoration: none;
-      margin-top: 6px;
-      transition: background 0.15s;
-    }
-    .signal-stellar-link:hover { background: rgba(88,166,255,0.2); }
-    .signal-data {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 6px;
-    }
-    .signal-datum {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-    }
-    .signal-datum strong {
-      display: block;
-      font-family: var(--mono);
-      font-size: 0.78rem;
-      color: var(--text);
-      font-weight: 500;
-    }
-    .offline-badge {
-      font-size: 0.65rem;
-      background: rgba(210,153,34,0.15);
-      color: var(--yellow);
-      border: 1px solid rgba(210,153,34,0.3);
-      padding: 1px 7px;
-      border-radius: 10px;
-    }
-
-    .signal-voi {
-      font-family: var(--mono);
-      font-size: 0.72rem;
-      color: var(--accent);
-      background: rgba(88,166,255,0.1);
-      border: 1px solid rgba(88,166,255,0.2);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-    .signal-bandit {
-      font-family: var(--mono);
-      font-size: 0.72rem;
-      color: var(--purple);
-      background: rgba(188,140,255,0.1);
-      border: 1px solid rgba(188,140,255,0.2);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    /* ── Agent Learning section ─────────────────────────────────────────── */
-    .learning-section { margin-bottom: 20px; }
-    .learning-header {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .bandit-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
-      margin-bottom: 8px;
-    }
-    .bandit-card:last-child { margin-bottom: 0; }
-    .bandit-signal-name {
-      font-family: var(--mono);
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--accent);
-      margin-bottom: 6px;
-    }
-    .bandit-stats {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .bandit-stat {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-    }
-    .bandit-stat strong {
-      font-family: var(--mono);
-      color: var(--text);
-    }
-    .bandit-bar-track {
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      margin-top: 6px;
-      overflow: hidden;
-    }
-    .bandit-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--green), var(--purple));
-      border-radius: 3px;
-      transition: width 0.5s;
-    }
-    .no-learning {
-      color: var(--text-dim);
-      font-size: 0.82rem;
-      font-style: italic;
-      padding: 10px 0;
-    }
-
-    /* ── Reasoning ───────────────────────────────────────────────────── */
-    .reasoning-section { margin-bottom: 0; }
-    .reasoning-text {
-      font-family: var(--mono);
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .reasoning-text .step {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    /* ── Error banner ────────────────────────────────────────────────── */
-    #error-banner {
+    /* ── ERROR ── */
+    .error-banner {
       display: none;
-      background: rgba(248,81,73,0.08);
-      border: 1px solid rgba(248,81,73,0.35);
+      background: var(--fraud-bg);
+      border: 1px solid var(--fraud-border);
       border-radius: var(--radius);
       padding: 14px 18px;
-      color: var(--red);
       font-size: 0.85rem;
-      margin-bottom: 16px;
+      color: var(--fraud);
     }
-    #error-banner strong { display: block; margin-bottom: 4px; }
+    .error-banner.visible { display: block; }
 
-    /* ── Empty state ─────────────────────────────────────────────────── */
+    /* ── EMPTY STATE ── */
     .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 60px 20px;
+      padding: 80px 32px;
       color: var(--text-dim);
       text-align: center;
+      gap: 14px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+    }
+
+    .empty-icon { font-size: 2.5rem; opacity: 0.4; }
+    .empty-state p { font-size: 0.9rem; max-width: 300px; line-height: 1.6; }
+    .empty-state small { font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+    /* ── DECISION CARD ── */
+    .decision-card {
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      display: none;
+      align-items: center;
+      gap: 20px;
+      border: 1px solid;
+    }
+
+    .decision-card.visible { display: flex; }
+    .decision-card.FRAUD { background: var(--fraud-bg); border-color: var(--fraud-border); }
+    .decision-card.LEGITIMATE { background: var(--legit-bg); border-color: var(--legit-border); }
+    .decision-card.UNCERTAIN { background: var(--uncertain-bg); border-color: var(--uncertain-border); }
+
+    .decision-icon-wrap {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+
+    .FRAUD .decision-icon-wrap { background: rgba(248,81,73,0.2); }
+    .LEGITIMATE .decision-icon-wrap { background: rgba(63,185,80,0.2); }
+    .UNCERTAIN .decision-icon-wrap { background: rgba(210,153,34,0.2); }
+
+    .decision-body { flex: 1; }
+
+    .decision-verdict {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .FRAUD .decision-verdict { color: var(--fraud); }
+    .LEGITIMATE .decision-verdict { color: var(--legit); }
+    .UNCERTAIN .decision-verdict { color: var(--uncertain); }
+
+    .decision-sub { font-size: 0.8rem; color: var(--text-muted); }
+
+    .decision-meta {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .meta-chip {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .meta-chip.cost { color: var(--copper); border-color: rgba(212,165,116,0.3); background: rgba(212,165,116,0.08); }
+
+    /* ── AGENT PIPELINE ── */
+    .pipeline-card { padding: 0; overflow: hidden; }
+
+    .pipeline-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pipeline-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+    }
+
+    .pipeline-live {
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      color: var(--legit);
+      display: none;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pipeline-live.active { display: flex; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--legit); animation: livePulse 1s ease-in-out infinite; }
+    @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .pipeline-steps { padding: 16px 20px; display: flex; flex-direction: column; gap: 0; }
+
+    .pipeline-step {
+      display: flex;
+      gap: 14px;
+      position: relative;
+    }
+
+    .pipeline-step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 32px;
+      bottom: -8px;
+      width: 2px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+
+    .pipeline-step.done:not(:last-child)::before { background: var(--copper-dim); }
+    .pipeline-step.active:not(:last-child)::before { background: var(--copper); }
+
+    .step-connector { margin-bottom: 8px; }
+
+    .step-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      transition: all 0.3s;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .pipeline-step.done .step-dot { border-color: var(--copper-dim); background: rgba(212,165,116,0.1); color: var(--copper); }
+    .pipeline-step.active .step-dot { border-color: var(--copper); background: rgba(212,165,116,0.15); color: var(--copper); box-shadow: 0 0 12px rgba(212,165,116,0.3); animation: stepPulse 1.2s ease-in-out infinite; }
+    .pipeline-step.fraud-step .step-dot { border-color: var(--fraud); background: var(--fraud-bg); color: var(--fraud); }
+    .pipeline-step.legit-step .step-dot { border-color: var(--legit); background: var(--legit-bg); color: var(--legit); }
+    .pipeline-step.uncertain-step .step-dot { border-color: var(--uncertain); background: var(--uncertain-bg); color: var(--uncertain); }
+
+    @keyframes stepPulse { 0%,100%{box-shadow:0 0 8px rgba(212,165,116,0.3)} 50%{box-shadow:0 0 20px rgba(212,165,116,0.6)} }
+
+    .step-body { flex: 1; padding-bottom: 20px; }
+
+    .step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pipeline-step.done .step-label,
+    .pipeline-step.active .step-label { color: var(--text); }
+
+    .step-badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-weight: 400;
+    }
+
+    .step-badge.thinking { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+    .step-badge.done-badge { background: rgba(212,165,116,0.12); color: var(--copper); border: 1px solid rgba(212,165,116,0.25); }
+    .step-badge.fraud-badge { background: var(--fraud-bg); color: var(--fraud); border: 1px solid var(--fraud-border); }
+    .step-badge.legit-badge { background: var(--legit-bg); color: var(--legit); border: 1px solid var(--legit-border); }
+    .step-badge.uncertain-badge { background: var(--uncertain-bg); color: var(--uncertain); border: 1px solid var(--uncertain-border); }
+
+    .step-detail {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    .step-detail .highlight { color: var(--copper); font-weight: 600; }
+    .step-detail .fraud-val { color: var(--fraud); font-weight: 600; }
+    .step-detail .legit-val { color: var(--legit); font-weight: 600; }
+    .step-detail .uncertain-val { color: var(--uncertain); font-weight: 600; }
+    .step-detail .dim { color: var(--text-dim); }
+
+    /* Signal purchase inside pipeline */
+    .signal-purchase-item {
+      margin-top: 8px;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      border-left: 3px solid var(--copper);
+    }
+
+    .sig-purchase-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .sig-purchase-name {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--copper);
+    }
+
+    .sig-purchase-cost {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: rgba(212,165,116,0.1);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .sig-purchase-data {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sig-datum {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .sig-datum strong { color: var(--text); }
+
+    .sig-purchase-delta {
+      margin-top: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+
+    .sig-purchase-delta.up { color: var(--fraud); }
+    .sig-purchase-delta.down { color: var(--legit); }
+    .sig-purchase-delta.neutral { color: var(--text-dim); }
+
+    /* ── PROBABILITY CHART ── */
+    .prob-section { display: none; }
+    .prob-section.visible { display: block; }
+
+    .prob-big {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 3.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .prob-big.FRAUD { color: var(--fraud); }
+    .prob-big.LEGITIMATE { color: var(--legit); }
+    .prob-big.UNCERTAIN { color: var(--uncertain); }
+
+    .prob-sublabel {
+      text-align: center;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .prob-bar-wrap {
+      position: relative;
+      height: 10px;
+      background: var(--bg);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .prob-zones {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+    }
+
+    .zone-l { background: rgba(63,185,80,0.2); width: 35%; }
+    .zone-u { background: rgba(210,153,34,0.15); width: 30%; }
+    .zone-f { background: rgba(248,81,73,0.2); width: 35%; }
+
+    .prob-fill {
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .prob-fill.FRAUD { background: linear-gradient(90deg, rgba(248,81,73,0.5), var(--fraud)); }
+    .prob-fill.LEGITIMATE { background: linear-gradient(90deg, rgba(63,185,80,0.5), var(--legit)); }
+    .prob-fill.UNCERTAIN { background: linear-gradient(90deg, rgba(210,153,34,0.5), var(--uncertain)); }
+
+    .prob-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      margin-bottom: 12px;
+    }
+
+    .prob-tick-mid { color: var(--uncertain); }
+
+    /* CI */
+    .ci-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .ci-val { color: var(--text); font-weight: 600; }
+    .ci-sep { color: var(--text-dim); }
+
+    /* ── CHART SVG ── */
+    .chart-card { padding: 20px 24px; }
+
+    .chart-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chart-legend {
+      display: flex;
       gap: 12px;
     }
-    .empty-state .icon { font-size: 3rem; opacity: 0.4; }
-    .empty-state p { font-size: 0.85rem; max-width: 260px; line-height: 1.5; }
 
-    /* ── Footer ──────────────────────────────────────────────────────── */
-    footer {
-      text-align: center;
-      padding: 24px;
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
       color: var(--text-dim);
-      font-size: 0.72rem;
-      border-top: 1px solid var(--border);
-      margin-top: 40px;
     }
-    footer a { color: var(--accent); text-decoration: none; }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    #prob-chart-svg {
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      display: block;
+    }
+
+    /* ── EVIDENCE FLOW ── */
+    .evidence-card { display: none; }
+    .evidence-card.visible { display: block; }
+
+    .ev-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .ev-row:last-child { border-bottom: none; }
+
+    .ev-step-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      min-width: 72px;
+      font-family: var(--font-mono);
+    }
+
+    .ev-prob {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--copper);
+      min-width: 56px;
+    }
+
+    .ev-decision-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .ev-decision-badge.fraud { background: var(--fraud-bg); color: var(--fraud); border: 1px solid var(--fraud-border); }
+    .ev-decision-badge.legitimate { background: var(--legit-bg); color: var(--legit); border: 1px solid var(--legit-border); }
+    .ev-decision-badge.uncertain { background: var(--uncertain-bg); color: var(--uncertain); border: 1px solid var(--uncertain-border); }
+
+    .ev-delta-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .ev-delta-badge.up { background: rgba(248,81,73,0.1); color: var(--fraud); }
+    .ev-delta-badge.down { background: rgba(63,185,80,0.1); color: var(--legit); }
+    .ev-delta-badge.neutral { color: var(--text-dim); }
+
+    .ev-arrow { color: var(--text-dim); font-size: 0.8rem; padding: 4px 0 4px 36px; }
+
+    /* ── COUNTERFACTUAL ── */
+    .cf-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .cf-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .cf-box.with-agent { border-color: rgba(212,165,116,0.3); }
+
+    .cf-box-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .cf-box.with-agent .cf-box-label { color: var(--copper); }
+
+    .cf-prob {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .cf-verdict {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .cf-verdict.fraud { color: var(--fraud); }
+    .cf-verdict.legitimate { color: var(--legit); }
+    .cf-verdict.uncertain { color: var(--uncertain); }
+
+    .cf-correct { font-size: 0.65rem; color: var(--legit); margin-left: 6px; }
+    .cf-wrong { font-size: 0.65rem; color: var(--fraud); margin-left: 6px; }
+
+    .cf-lift {
+      display: none;
+      padding: 10px 14px;
+      background: rgba(63,185,80,0.08);
+      border: 1px solid rgba(63,185,80,0.2);
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--legit);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cf-lift.visible { display: flex; }
+
+    /* ── ECONOMIC IMPACT ── */
+    .econ-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .econ-box {
+      text-align: center;
+      padding: 12px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .econ-val {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .econ-lbl {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .econ-net {
+      text-align: center;
+      padding: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .econ-net-val {
+      font-family: var(--font-mono);
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .econ-net-lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── SIGNALS ── */
+    .signals-section { display: none; }
+    .signals-section.visible { display: block; }
+
+    .signal-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .signal-card:last-child { margin-bottom: 0; }
+
+    .signal-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .signal-name {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--copper);
+    }
+
+    .signal-cost-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: rgba(212,165,116,0.08);
+      border: 1px solid rgba(212,165,116,0.2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .signal-impact {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .signal-impact.pos { background: var(--fraud-bg); color: var(--fraud); border: 1px solid var(--fraud-border); }
+    .signal-impact.neg { background: var(--legit-bg); color: var(--legit); border: 1px solid var(--legit-border); }
+    .signal-impact.neu { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .signal-data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .signal-datum {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .signal-datum strong {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    .signal-tx-link {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--blue);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .signal-tx-link:hover { text-decoration: underline; }
+
+    .signal-why {
+      padding: 8px 10px;
+      background: rgba(212,165,116,0.05);
+      border-left: 2px solid var(--copper-dim);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .signal-why-label {
+      font-weight: 700;
+      color: var(--copper-dim);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-right: 4px;
+    }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: none;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .stats-row.visible { display: grid; }
+
+    .stat-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .stat-lbl {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ── BANDIT ── */
+    .bandit-section { display: none; }
+    .bandit-section.visible { display: block; }
+
+    .bandit-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .bandit-row:last-child { margin-bottom: 0; }
+
+    .bandit-name {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 100px;
+    }
+
+    .bandit-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .bandit-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--copper-dim), var(--copper));
+      border-radius: 2px;
+      transition: width 0.5s;
+    }
+
+    .bandit-pct {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--copper);
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .bandit-trend {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      min-width: 70px;
+    }
+
+    .bandit-trend.up { color: var(--legit); }
+    .bandit-trend.down { color: var(--fraud); }
+    .bandit-trend.neutral { color: var(--text-dim); }
+
+    /* ── EXPLANATION ── */
+    .explanation-card {
+      display: none;
+      background: rgba(212,165,116,0.04);
+      border: 1px solid rgba(212,165,116,0.2);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+    }
+
+    .explanation-card.visible { display: block; }
+
+    .explanation-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--copper);
+      margin-bottom: 10px;
+    }
+
+    .explanation-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ── REASONING ── */
+    .reasoning-section { display: none; }
+    .reasoning-section.visible { display: block; }
+
+    .reasoning-text {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    /* ── AUDIT ── */
+    .audit-card { display: none; }
+    .audit-card.visible { display: block; }
+
+    .audit-toggle-btn {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+
+    .audit-body { display: none; margin-top: 14px; }
+    .audit-body.open { display: block; }
+
+    .audit-log {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      line-height: 1.8;
+    }
+
+    .audit-log .log-step { color: var(--text-muted); }
+    .audit-log .log-key { color: var(--copper); }
+    .audit-log .log-fraud { color: var(--fraud); }
+    .audit-log .log-legit { color: var(--legit); }
+
+    .audit-tx-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+    .audit-tx-link {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--blue);
+      text-decoration: none;
+      padding: 3px 8px;
+      background: rgba(88,166,255,0.08);
+      border-radius: 4px;
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .audit-tx-link:hover { text-decoration: underline; }
+
+    /* ── STREAMING ANIMATION ── */
+    .streaming-text {
+      color: var(--copper);
+      animation: textPulse 0.8s ease-in-out infinite;
+    }
+
+    @keyframes textPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   </style>
 </head>
 <body>
 
-<!-- ── Header ──────────────────────────────────────────────────────────── -->
-<header>
-  <div class="logo">🛡️</div>
-  <h1>Fraud<span>Signal</span> Agent</h1>
-  <div class="header-badge">Stellar Hacks 2026</div>
-  <div id="api-status" title="API status"></div>
-</header>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <img class="topbar-logo" src="logo.png" alt="SCORYTHM" />
+    <span class="topbar-name">SCORYTHM</span>
+    <span class="topbar-tag">Fraud Intelligence Agent</span>
+  </div>
+  <div class="topbar-status">
+    <div class="status-item">
+      <div class="status-dot" id="health-dot"></div>
+      <span>Model</span>
+      <span class="status-val" id="health-status">—</span>
+    </div>
+    <div class="status-item">
+      <span>ROC-AUC</span>
+      <span class="status-val" id="health-auc">—</span>
+    </div>
+  </div>
+</div>
 
-<!-- ── Main layout ─────────────────────────────────────────────────────── -->
-<div class="container">
+<div class="app">
 
-  <!-- ── Left: Input form ──────────────────────────────────────────────── -->
-  <div>
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
+
+    <!-- Presets -->
+    <div class="presets">
+      <button class="preset-btn fraud-preset" id="btn-fraud" onclick="loadPreset('fraud')">🚨 Fraud Case</button>
+      <button class="preset-btn legit-preset" id="btn-legit" onclick="loadPreset('legit')">✓ Legitimate</button>
+      <button class="preset-btn uncertain-preset" id="btn-uncertain" onclick="loadPreset('uncertain')">◈ Uncertain</button>
+    </div>
+
+    <!-- Transaction Input -->
     <div class="card">
-      <div class="card-title">Transaction Input</div>
-
-      <!-- Presets -->
-      <div class="presets">
-        <span style="font-size:0.72rem;color:var(--text-dim);align-self:center;margin-right:4px;">Presets:</span>
-        <button class="preset-btn fraud"     onclick="loadPreset('fraud')">🚨 Fraud</button>
-        <button class="preset-btn legit"     onclick="loadPreset('legit')">✅ Legit</button>
-        <button class="preset-btn uncertain" onclick="loadPreset('uncertain')">⚠️ Uncertain</button>
-      </div>
+      <div class="card-title">Transaction Parameters</div>
 
       <form id="tx-form" onsubmit="return false;">
         <div class="form-grid">
 
-          <!-- Amount -->
           <div class="form-group">
-            <label>Amount (USD) <span class="hint">0 – 1,000,000</span></label>
-            <input type="number" id="amount" value="2500.00" min="0" max="1000000" step="0.01" />
+            <label>Amount <span class="label-badge">USD</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="amount" class="prefixed" value="2500.00" min="0" max="1000000" step="0.01" />
+            </div>
           </div>
 
-          <!-- Hour -->
           <div class="form-group">
-            <label>Hour of Day <span class="hint">0 – 23 UTC</span></label>
-            <input type="number" id="hour" value="3" min="0" max="23" step="1" />
+            <label>Hour <span class="label-badge">UTC</span></label>
+            <div class="range-row">
+              <input type="range" id="hour-range" min="0" max="23" value="3" oninput="updateHour(this.value)" />
+              <span class="range-val" id="hour-display">3</span>
+            </div>
           </div>
 
-          <!-- Country mismatch -->
           <div class="form-group">
             <label>Country Mismatch</label>
             <div class="toggle-group">
-              <button type="button" class="toggle-btn" id="cm-0" onclick="setToggle('country_mismatch', 0)">0 — No</button>
-              <button type="button" class="toggle-btn active" id="cm-1" onclick="setToggle('country_mismatch', 1)">1 — Yes</button>
+              <button type="button" class="toggle-btn off" id="cm-0" onclick="setToggle('country_mismatch', 0)">No</button>
+              <button type="button" class="toggle-btn on" id="cm-1" onclick="setToggle('country_mismatch', 1)">Yes</button>
             </div>
             <input type="hidden" id="country_mismatch" value="1" />
           </div>
 
-          <!-- New account -->
           <div class="form-group">
             <label>New Account</label>
             <div class="toggle-group">
-              <button type="button" class="toggle-btn" id="na-0" onclick="setToggle('new_account', 0)">0 — No</button>
-              <button type="button" class="toggle-btn active" id="na-1" onclick="setToggle('new_account', 1)">1 — Yes</button>
+              <button type="button" class="toggle-btn off" id="na-0" onclick="setToggle('new_account', 0)">No</button>
+              <button type="button" class="toggle-btn on" id="na-1" onclick="setToggle('new_account', 1)">Yes</button>
             </div>
             <input type="hidden" id="new_account" value="1" />
           </div>
 
-          <!-- Device age -->
           <div class="form-group">
-            <label>Device Age <span class="hint">days</span></label>
-            <input type="number" id="device_age_days" value="2" min="0" max="3650" step="0.1" />
+            <label>Device Age <span class="label-badge">days</span></label>
+            <input type="number" id="device_age_days" value="2" min="0" max="3650" step="1" />
           </div>
 
-          <!-- Tx velocity -->
           <div class="form-group">
-            <label>Tx Last 24h <span class="hint">count</span></label>
+            <label>Tx Last 24h</label>
             <input type="number" id="transactions_last_24h" value="28" min="0" max="500" step="1" />
+          </div>
+
+          <div class="form-group">
+            <label>Device Risk <span class="label-badge">0–1</span></label>
+            <div class="range-row">
+              <input type="range" id="device_risk_score" min="0" max="1" step="0.01" value="0.90"
+                     oninput="document.getElementById('drs-display').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="drs-display">0.90</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Email Domain Risk <span class="label-badge">0–1</span></label>
+            <div class="range-row">
+              <input type="range" id="email_domain_risk" min="0" max="1" step="0.01" value="0.85"
+                     oninput="document.getElementById('edr-display').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="edr-display">0.85</span>
+            </div>
           </div>
 
         </div>
 
-        <button class="btn-evaluate" id="eval-btn" onclick="submitTransaction()">
+        <button class="btn-eval" id="eval-btn" onclick="submitTransaction()">
           <div class="spinner" id="spinner"></div>
-          <span id="btn-text">⚡ Evaluate Transaction</span>
+          <span id="btn-text">ANALYZE TRANSACTION</span>
         </button>
       </form>
     </div>
 
-    <!-- Model info card -->
-    <div class="card" style="margin-top:16px;" id="model-info-card">
-      <div class="card-title">Model & Agent Info</div>
-      <div id="model-info-content" style="color:var(--text-dim);font-size:0.8rem;">
-        Loading model metrics...
-      </div>
+    <!-- Thompson Bandit State -->
+    <div class="card bandit-section" id="bandit-section">
+      <div class="card-title">Thompson Sampling — Signal Priorities</div>
+      <div id="bandit-list"></div>
     </div>
+
   </div>
 
-  <!-- ── Right: Result panel ───────────────────────────────────────────── -->
-  <div>
-    <div id="error-banner">
-      <strong>⚠️ Connection Error</strong>
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right-panel">
+
+    <!-- Error Banner -->
+    <div class="error-banner" id="error-banner">
+      <strong>⚠ Connection Error</strong><br/>
       <span id="error-msg"></span>
     </div>
 
-    <div id="result-panel">
-      <div class="card">
-        <!-- Decision banner -->
-        <div id="decision-banner" class="decision-banner">
-          <div class="decision-icon" id="decision-icon"></div>
-          <div>
-            <div class="decision-label" id="decision-label"></div>
-            <div class="decision-sub" id="decision-sub"></div>
-          </div>
-          <div class="decision-cost">
-            <div class="cost-val" id="cost-val"></div>
-            <div class="cost-label">signals cost</div>
-          </div>
-        </div>
+    <!-- Empty State -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◇</div>
+      <p>Submit a transaction to see the agent analyze, reason, and decide in real time.</p>
+      <small>XGBoost · VOI · Thompson Sampling · x402 Micropayments</small>
+    </div>
 
-        <!-- Probability bar with confidence interval -->
-        <div class="prob-section">
-          <div class="prob-labels">
-            <span>Fraud Probability</span>
-            <span class="prob-value" id="prob-value"></span>
-          </div>
-          <div class="prob-bar-track">
-            <div class="prob-bar-fill" id="prob-bar"></div>
-          </div>
-          <!-- Confidence interval visualization -->
-          <div class="ci-section" id="ci-section" style="margin-top:8px;">
-            <div class="ci-labels" style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-dim);margin-bottom:4px;">
-              <span>Confidence Interval</span>
-              <span id="ci-values"></span>
-            </div>
-            <div class="ci-track" style="height:20px;background:var(--bg);border:1px solid var(--border);border-radius:4px;position:relative;overflow:hidden;">
-              <!-- CI fill -->
-              <div class="ci-fill" id="ci-fill" style="position:absolute;top:0;height:100%;background:rgba(188,140,255,0.3);transition:left 0.5s, width 0.5s;"></div>
-              <!-- Point estimate marker -->
-              <div class="ci-marker" id="ci-marker" style="position:absolute;top:2px;bottom:2px;width:4px;background:var(--purple);border-radius:2px;transition:left 0.5s;box-shadow:0 0 6px var(--purple);"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:0.62rem;color:var(--text-dim);margin-top:2px;">
-              <span>0%</span><span>50%</span><span>100%</span>
-            </div>
-          </div>
-          <!-- Risk zone indicator -->
-          <div id="risk-zone" style="margin-top:8px;font-size:0.72rem;padding:6px 10px;border-radius:4px;display:inline-block;"></div>
-        </div>
-
-        <!-- Metrics row -->
-        <div class="metrics-row">
-          <div class="metric-box">
-            <div class="metric-val" id="m-uncertainty"></div>
-            <div class="metric-lbl">Uncertainty</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-val" id="m-signals"></div>
-            <div class="metric-lbl">Signals Bought</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-val" id="m-elapsed"></div>
-            <div class="metric-lbl">Eval Time</div>
-          </div>
-        </div>
-
-        <!-- Signals purchased -->
-        <div class="signals-section">
-          <div class="signals-header">
-            Signals Purchased
-            <span class="signals-count" id="signals-count">0</span>
-          </div>
-          <div id="signals-list"></div>
-        </div>
-
-        <!-- Agent Learning -->
-        <div class="learning-section" id="learning-section" style="display:none;">
-          <div class="learning-header">
-            Agent Learning (Thompson Sampling)
-          </div>
-          <div id="bandit-stats"></div>
-        </div>
-
-        <!-- Reasoning -->
-        <div class="reasoning-section">
-          <div class="signals-header" style="margin-bottom:10px;">Agent Reasoning</div>
-          <div class="reasoning-text" id="reasoning-text"></div>
-        </div>
+    <!-- Decision Card -->
+    <div class="decision-card" id="decision-card">
+      <div class="decision-icon-wrap">
+        <span id="decision-icon"></span>
+      </div>
+      <div class="decision-body">
+        <div class="decision-verdict" id="decision-label"></div>
+        <div class="decision-sub" id="decision-sub"></div>
+      </div>
+      <div class="decision-meta">
+        <div class="meta-chip cost" id="cost-chip">$0.000 signals</div>
+        <div class="meta-chip" id="time-chip">—</div>
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div id="empty-state" class="card empty-state">
-      <div class="icon">🔍</div>
-      <p>Submit a transaction to see the agent's fraud evaluation and signal purchase decisions.</p>
+    <!-- Agent Pipeline -->
+    <div class="card pipeline-card" id="pipeline-card" style="display:none;">
+      <div class="pipeline-header">
+        <span class="pipeline-title">Agent Decision Pipeline</span>
+        <span class="pipeline-live" id="pipeline-live"><span class="live-dot"></span>LIVE</span>
+      </div>
+      <div class="pipeline-steps" id="pipeline-steps">
+
+        <!-- Step 1: XGBoost Model -->
+        <div class="pipeline-step" id="ps-model">
+          <div class="step-dot">①</div>
+          <div class="step-body">
+            <div class="step-label">
+              XGBoost Prediction
+              <span class="step-badge thinking" id="ps-model-badge" style="display:none;">thinking...</span>
+            </div>
+            <div class="step-detail" id="ps-model-detail" style="display:none;"></div>
+          </div>
+        </div>
+
+        <!-- Step 2: Risk Zone -->
+        <div class="pipeline-step" id="ps-zone">
+          <div class="step-dot">②</div>
+          <div class="step-body">
+            <div class="step-label">
+              Risk Zone Assessment
+              <span class="step-badge thinking" id="ps-zone-badge" style="display:none;">thinking...</span>
+            </div>
+            <div class="step-detail" id="ps-zone-detail" style="display:none;"></div>
+          </div>
+        </div>
+
+        <!-- Step 3: VOI / Signal Purchase -->
+        <div class="pipeline-step" id="ps-signals">
+          <div class="step-dot">③</div>
+          <div class="step-body">
+            <div class="step-label">
+              VOI Analysis &amp; Signal Purchase
+              <span class="step-badge thinking" id="ps-signals-badge" style="display:none;">thinking...</span>
+            </div>
+            <div class="step-detail" id="ps-signals-detail" style="display:none;"></div>
+            <div id="ps-signals-list"></div>
+          </div>
+        </div>
+
+        <!-- Step 4: Final Decision -->
+        <div class="pipeline-step" id="ps-decision">
+          <div class="step-dot">④</div>
+          <div class="step-body">
+            <div class="step-label">
+              Final Decision
+              <span class="step-badge thinking" id="ps-decision-badge" style="display:none;">thinking...</span>
+            </div>
+            <div class="step-detail" id="ps-decision-detail" style="display:none;"></div>
+          </div>
+        </div>
+
+      </div>
     </div>
+
+    <!-- Probability Section -->
+    <div class="card prob-section" id="prob-section">
+      <div class="card-title">Fraud Probability</div>
+      <div class="prob-big" id="prob-number">0%</div>
+      <div class="prob-sublabel">P(fraud | transaction)</div>
+      <div class="prob-bar-wrap">
+        <div class="prob-zones">
+          <div class="zone-l"></div>
+          <div class="zone-u"></div>
+          <div class="zone-f"></div>
+        </div>
+        <div class="prob-fill" id="prob-fill"></div>
+      </div>
+      <div class="prob-ticks">
+        <span>0% Legit</span>
+        <span class="prob-tick-mid">35% ← Uncertain → 65%</span>
+        <span>100% Fraud</span>
+      </div>
+      <div class="ci-row" id="ci-row" style="display:none;">
+        <span style="color:var(--text-dim);font-size:0.72rem;">95% CI:</span>
+        <span class="ci-val" id="ci-low">—</span>
+        <span class="ci-sep">—</span>
+        <span class="ci-val" id="ci-point">—</span>
+        <span class="ci-sep">—</span>
+        <span class="ci-val" id="ci-high">—</span>
+      </div>
+    </div>
+
+    <!-- Probability Evolution Chart -->
+    <div class="card chart-card" id="chart-card" style="display:none;">
+      <div class="chart-title">
+        Probability Evolution
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--legit)"></div>Legit zone</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--uncertain)"></div>Uncertain</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--fraud)"></div>Fraud zone</div>
+        </div>
+      </div>
+      <svg id="prob-chart-svg" viewBox="0 0 520 200"></svg>
+    </div>
+
+    <!-- Evidence Flow -->
+    <div class="card evidence-card" id="evidence-card">
+      <div class="card-title">Evidence Flow</div>
+      <div id="ev-baseline-row" class="ev-row">
+        <span class="ev-step-label">Baseline</span>
+        <span class="ev-prob" id="ev-baseline-prob">—</span>
+        <span id="ev-baseline-decision"></span>
+      </div>
+      <div id="ev-sig1-arrow" class="ev-arrow" style="display:none;">↓ signal purchased</div>
+      <div id="ev-sig1-row" class="ev-row" style="display:none;">
+        <span class="ev-step-label" id="ev-sig1-label">Signal 1</span>
+        <span class="ev-prob" id="ev-sig1-prob">—</span>
+        <span id="ev-sig1-decision"></span>
+        <span id="ev-sig1-delta"></span>
+      </div>
+      <div id="ev-sig2-arrow" class="ev-arrow" style="display:none;">↓ signal purchased</div>
+      <div id="ev-sig2-row" class="ev-row" style="display:none;">
+        <span class="ev-step-label" id="ev-sig2-label">Signal 2</span>
+        <span class="ev-prob" id="ev-sig2-prob">—</span>
+        <span id="ev-sig2-decision"></span>
+        <span id="ev-sig2-delta"></span>
+      </div>
+      <div class="ev-arrow">↓ final</div>
+      <div class="ev-row">
+        <span class="ev-step-label">Decision</span>
+        <span class="ev-prob" id="ev-final-prob">—</span>
+        <span id="ev-final-decision"></span>
+      </div>
+    </div>
+
+    <!-- Counterfactual Analysis -->
+    <div class="card" id="cf-card" style="display:none;">
+      <div class="card-title">Counterfactual Analysis — Agent Value</div>
+      <div class="cf-grid">
+        <div class="cf-box">
+          <div class="cf-box-label">Without Agent</div>
+          <div class="cf-prob" id="cf-without-prob">—</div>
+          <div id="cf-without-verdict"></div>
+        </div>
+        <div class="cf-box with-agent">
+          <div class="cf-box-label">With Agent</div>
+          <div class="cf-prob" id="cf-with-prob">—</div>
+          <div id="cf-with-verdict"></div>
+        </div>
+      </div>
+      <div class="cf-lift" id="cf-lift">
+        <span>📈</span>
+        <span id="cf-lift-text"></span>
+      </div>
+    </div>
+
+    <!-- Economic Impact -->
+    <div class="card" id="econ-card" style="display:none;">
+      <div class="card-title">Economic Impact</div>
+      <div class="econ-grid">
+        <div class="econ-box">
+          <div class="econ-val" id="econ-cost">—</div>
+          <div class="econ-lbl">Signal Cost</div>
+        </div>
+        <div class="econ-box">
+          <div class="econ-val" style="color:var(--fraud);" id="econ-loss-before">—</div>
+          <div class="econ-lbl">Loss Without Agent</div>
+        </div>
+        <div class="econ-box">
+          <div class="econ-val" style="color:var(--legit);" id="econ-loss-after">—</div>
+          <div class="econ-lbl">Loss With Agent</div>
+        </div>
+      </div>
+      <div class="econ-net">
+        <div class="econ-net-val" id="econ-net-val">—</div>
+        <div class="econ-net-lbl">Net Value of Agent Decision</div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="stats-row"></div>
+
+    <!-- Signals Purchased -->
+    <div class="card signals-section" id="signals-section">
+      <div class="card-title" style="display:flex;justify-content:space-between;">
+        <span>Signals Purchased via x402</span>
+        <span style="font-family:var(--font-mono);color:var(--copper);" id="signals-count">0</span>
+      </div>
+      <div id="signals-list"></div>
+    </div>
+
+    <!-- Claude Explanation -->
+    <div class="explanation-card" id="explanation-card">
+      <div class="explanation-header">✦ AI Reasoning</div>
+      <p class="explanation-text" id="explanation-text"></p>
+    </div>
+
+    <!-- Agent Reasoning Trace -->
+    <div class="card reasoning-section" id="reasoning-section">
+      <div class="card-title">Agent Reasoning Trace</div>
+      <div class="reasoning-text" id="reasoning-text"></div>
+    </div>
+
+    <!-- Audit Trace -->
+    <div class="card audit-card" id="audit-card">
+      <div class="audit-toggle-btn" onclick="toggleAudit()">
+        <div class="card-title" style="margin-bottom:0;">Audit Trail</div>
+        <span id="audit-toggle" style="color:var(--text-dim);font-size:0.8rem;">▼ expand</span>
+      </div>
+      <div class="audit-body" id="audit-body">
+        <div style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);margin-bottom:8px;" id="audit-meta"></div>
+        <div class="audit-log" id="audit-log"></div>
+        <div class="audit-tx-links" id="audit-tx-links"></div>
+      </div>
+    </div>
+
   </div>
-
 </div>
-
-<footer>
-  FraudSignal Agent &mdash; Built for
-  <a href="https://stellarhacks.devpost.com" target="_blank">Stellar Hacks: Agents 2026</a>
-  &mdash; Powered by XGBoost + x402 + Stellar Testnet
-</footer>
 
 <script src="app.js"></script>
 </body>

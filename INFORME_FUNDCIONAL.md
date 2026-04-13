@@ -1,17 +1,15 @@
-# FraudSignal Agent — Informe Funcional
-## Stellar Hacks 2026
-
----
+# Scorythm Agent — Informe Funcional
 
 ## 1. Resumen Ejecutivo
 
-**FraudSignal Agent** es un sistema de detección de fraude en transacciones financieras que utiliza aprendizaje automático calibrado, cuantificación de incertidumbre y un agente de decisión que aprende a comprar señales de información de forma autónoma mediante micropagos en la red Stellar.
+**Scorythm Agent** es un sistema de detección de fraude en transacciones financieras que utiliza aprendizaje automático calibrado, cuantificación de incertidumbre y un agente de decisión que aprende a comprar señales de información de forma autónoma mediante micropagos en la red Stellar.
 
 El proyecto demuestra una arquitectura completa de agente de IA que:
 - Evalúa transacciones con confianza estadísticamente garantizada
 - Decide dinámicamente cuándo comprar información adicional
 - Aprende qué señales son más útiles mediante Thompson Sampling
 - Realiza pagos reales en Stellar Testnet via x402
+- Explica sus decisiones en lenguaje natural usando Claude API
 
 ---
 
@@ -31,6 +29,7 @@ Un agente que:
 2. **Compra información adicional de forma inteligente** — solo cuando el costo de no saber es mayor
 3. **Aprende del mercado de señales** — descubre qué fuentes de datos son más valiosas
 4. **Opera de manera auditable** — registra cada decisión y su razonamiento
+5. **Explica sus decisiones** — en lenguaje natural para humanos no técnicos
 
 ### 2.3 Modelo de Monetización x402
 
@@ -39,30 +38,30 @@ Un agente que:
 │                     PAGADOR (Cliente)                       │
 │              /evaluate → paga señales via x402             │
 └─────────────────────┬───────────────────────────────────────┘
-                      │ $0.001-0.01 XLM por señal
-                      │ HTTP con header payment-signature
-                      ▼
+                       │ $0.001-0.01 XLM por señal
+                       │ HTTP con header payment-signature
+                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              FRAUDSIGNAL AGENT (Servidor)                   │
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐    │
-│  │  FastAPI    │→ │    Agente    │→ │  XGBoost + CI   │    │
-│  │  (Node.js)  │  │   (Python)   │  │  (Conformal)    │    │
-│  └─────────────┘  └──────────────┘  └─────────────────┘    │
+│              FRAUD AGENT (Servidor)                         │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐ │
+│  │  FastAPI    │→ │    Agente    │→ │  XGBoost + CI   │ │
+│  │  (Python)   │  │   (Python)   │  │  (Conformal)    │ │
+│  └─────────────┘  └──────────────┘  └─────────────────┘ │
 │                           │                                 │
 │                    ┌──────┴───────┐                         │
 │                    │ VOI + Bandit │                         │
 │                    │  (Thompson)  │                         │
 │                    └──────────────┘                         │
 └─────────────────────┬───────────────────────────────────────┘
-                      │ $0.001-0.01 XLM por señal
-                      │ fetch_signal() via x402
-                      ▼
+                       │ $0.001-0.01 XLM por señal
+                       │ fetch_signal() via x402
+                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │               SIGNAL PROVIDERS (3 fuentes)                   │
-│  ┌──────────────┐ ┌───────────────┐ ┌───────────────────┐   │
-│  │ IP Reputation│ │ Device History│ │ TX Velocity       │   │
-│  │ ($0.001)     │ │ ($0.002)      │ │ ($0.003)          │   │
-│  └──────────────┘ └───────────────┘ └───────────────────┘   │
+│  ┌──────────────┐ ┌───────────────┐ ┌───────────────────┐ │
+│  │ IP Reputation│ │ Device History│ │ TX Velocity        │ │
+│  │ ($0.001)     │ │ ($0.002)      │ │ ($0.003)          │ │
+│  └──────────────┘ └───────────────┘ └───────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -88,40 +87,42 @@ Un agente que:
 │         HTML + CSS + Vanilla JS                  │
 │         Dashboard: http://localhost:3000         │
 └─────────────────────┬───────────────────────────┘
-                      │ HTTP (REST)
+                       │ HTTP (REST + SSE Streaming)
 ┌─────────────────────▼───────────────────────────┐
-│              API LAYER (Node.js)                 │
-│         server/index.js                          │
-│         - Sirve frontend estático               │
-│         - Proxy /api/* → :8000                  │
-│         - Verificación simplificada x402        │
-└─────────────────────┬───────────────────────────┘
-                      │ HTTP
-┌─────────────────────▼───────────────────────────┐
-│              BACKEND (Python/FastAPI)            │
+│              API LAYER (Python/FastAPI)          │
 │         api/main.py                              │
+│         - POST /evaluate (sync)                  │
+│         - POST /evaluate-stream (SSE streaming)   │
 │         - GET  /health                          │
-│         - POST /evaluate                        │
+└─────────────────────┬───────────────────────────┘
+                       │
+┌─────────────────────▼───────────────────────────┐
+│              FRAUD AGENT (Python)                 │
+│         agent/agent.py                           │
+│         - evaluate_transaction()                 │
+│         - evaluate_transaction_stream()          │
+│         agent/explainer.py                       │
+│         - explain_decision() → Claude API        │
 └────────┬───────────────────────────┬─────────────┘
          │                           │
 ┌────────▼────────┐     ┌───────────▼──────────────┐
 │  FRAUD AGENT    │     │   SIGNAL PROVIDERS        │
-│  agent/agent.py │     │   agent/x402_client.py    │
+│  agent/agent.py │     │   agent/x402_client.py  │
 │                 │     │                           │
-│  - predict()   │←────→│  - ip-reputation          │
-│  - evaluate()   │     │  - device-history         │
-│                 │     │  - tx-velocity            │
+│  - predict()   │←────→│  - ip-reputation         │
+│  - evaluate()  │     │  - device-history         │
+│  - stream()     │     │  - tx-velocity            │
 └────────┬────────┘     └───────────────────────────┘
          │
-┌────────▼──────────────┐
-│  MODEL LAYER           │
-│  model/predict.py      │
-│  model/train.py        │
-│                       │
-│  - XGBoost calibrado   │
-│  - Conformal Predict.  │
-│  - Confidence Intervals│
-└────────────────────────┘
+┌────────▼──────────────────────────────┐
+│  MODEL LAYER                          │
+│  model/predict.py                      │
+│  model/train.py                        │
+│                                       │
+│  - XGBoost calibrado                   │
+│  - Conformal Prediction                │
+│  - Confidence Intervals               │
+└───────────────────────────────────────┘
 ```
 
 ### 3.2 Modelo de Machine Learning
@@ -159,11 +160,11 @@ Dataset: 50,000 transacciones sintéticas
 │ 1. Load model if not cached                     │
 │ 2. Run XGBoost → raw_prob (calibrated)          │
 │ 3. Bootstrap (100 iterations)                   │
-│    → produce 100 predictions                    │
-│ 4. Conformal Prediction:                         │
+│    → produce 100 predictions                   │
+│ 4. Conformal Prediction:                        │
 │    - conf_low  = percentile(predictions, 2.5)   │
 │    - conf_high = percentile(predictions, 97.5)  │
-│ 5. uncertainty = conf_high - conf_low          │
+│ 5. uncertainty = conf_high - conf_low           │
 │ 6. Return:                                      │
 │    { prob_fraud, uncertainty, conf_low, conf_high } │
 └─────────────────────────────────────────────────┘
@@ -265,7 +266,7 @@ class ThompsonBandit:
 
 #### 3.6.1 Por qué Stellar y XLM Nativo
 
-**Problema resuelto**: El issuer de USDC en testnet (`CBIELTK6YBZJU...`) no es válido en Horizon testnet, causando errores en `@x402/stellar`.
+**Problema resuelto**: El issuer de USDC en testnet no es válido en Horizon testnet, causando errores en `@x402/stellar`.
 
 **Solución**: Usar XLM nativo directamente, evitando assets que requieren trustlines.
 
@@ -280,14 +281,14 @@ class ThompsonBandit:
        │  1. Pre-approve amount via Stellar SDK       │
        │─────────────────────────────────────────────→
        │                                              │
-       │  2. Construir TransactionBuilder             │
+       │  2. Construir TransactionBuilder               │
        │     - source: GBULNFYD... (agent address)   │
-       │     - destination: GB2FGBR... (provider)   │
+       │     - destination: GB2FGBR... (provider)     │
        │     - amount: 0.001 XLM (~0.1 USD)          │
        │     - memo: "sig:ip-reputation"              │
        │                                              │
        │  3. Firmar con secret                        │
-       │     - sign() → SHA256                       │
+       │     - sign() → SHA256                        │
        │                                              │
        │  4. submit_transaction()                      │
        │─────────────────────────────────────────────→
@@ -299,7 +300,7 @@ class ThompsonBandit:
        │     - { hash: tx_hash, spender: agent_addr }│
        │     - base64 encode                          │
        │                                              │
-       │  7. Request signal with header:             │
+       │  7. Request signal with header:              │
        │     payment-signature: <base64>              │
        │─────────────────────────────────────────────→
        │                                              │
@@ -311,7 +312,7 @@ class ThompsonBandit:
 
 ```
 Address: GBULNFYDNJNDW2HLRJWVWQDYVPP5PDEJ56POOQXACD575GHQXQMGKF4S
-Secret:  SCPEQCPK55S57XB7S3S6EOTBHGZMJKSHTYOJA732U7YCWWTYN72FALYH
+Secret:  SCPEQ.....
 Network: Stellar Testnet
 ```
 
@@ -337,7 +338,7 @@ Network: Stellar Testnet
 │  │ uncertainty = conf_high - conf_low               │  │
 │  └─────────────────────────────────────────────────┘  │
 │                                                        │
-│  Step 2: RISK ZONE ASSESSMENT                          │
+│  Step 2: RISK ZONE ASSESSMENT                         │
 │  ┌─────────────────────────────────────────────────┐  │
 │  │ if conf_low > 0.5:        RISKY (block)         │  │
 │  │ elif conf_high < 0.2:     SAFE (approve)        │  │
@@ -346,18 +347,18 @@ Network: Stellar Testnet
 │                                                        │
 │  Step 3: IF AMBIGUOUS → BUY SIGNALS                   │
 │  ┌─────────────────────────────────────────────────┐  │
-│  │ max 2 signals per evaluation                    │  │
+│  │ max 2 signals per evaluation                     │  │
 │  │ for each signal:                                │  │
-│  │   1. VOI = compute_voi(prob, utility, cost)    │  │
-│  │   2. Priority = bandit.sample()                 │  │
-│  │   3. adjusted = VOI * Priority                  │  │
-│  │   4. Buy signal with highest adjusted VOI       │  │
-│  │   5. Apply probability adjustment                │  │
+│  │   1. VOI = compute_voi(prob, utility, cost)     │  │
+│  │   2. Priority = bandit.sample()                  │  │
+│  │   3. adjusted = VOI * Priority                   │  │
+│  │   4. Buy signal with highest adjusted VOI        │  │
+│  │   5. Apply probability adjustment               │  │
 │  │   6. Break if no longer uncertain               │  │
-│  │   7. Update bandit with reward                  │  │
+│  │   7. Update bandit with reward                   │  │
 │  └─────────────────────────────────────────────────┘  │
 │                                                        │
-│  Step 4: FINAL DECISION                                │
+│  Step 4: FINAL DECISION                               │
 │  ┌─────────────────────────────────────────────────┐  │
 │  │ Without signals:                                │  │
 │  │   FRAUD      if prob >= 0.65                    │  │
@@ -371,6 +372,45 @@ Network: Stellar Testnet
 │  └─────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────┘
 ```
+
+### 3.8 Explicabilidad con Claude API
+
+El agente utiliza Claude (Anthropic) para generar explicaciones en lenguaje natural de sus decisiones.
+
+#### 3.8.1 Archivo: `agent/explainer.py`
+
+```python
+async def explain_decision(result: dict) -> str | None:
+    """
+    Llama a Claude API para explicar la decisión del agente.
+    Si ANTHROPIC_API_KEY no está configurado, retorna None sin error.
+    """
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    
+    system = """You are a fraud analyst assistant for SCORYTHM. 
+    Your job is to explain, in 2-3 clear sentences, why an AI agent 
+    made a specific fraud decision. Be concise and factual."""
+    
+    user = f"""The agent evaluated a transaction:
+    Decision: {result['decision']}
+    Initial prob: {result['initial_prob_fraud']:.1%}
+    Final prob: {result['prob_fraud']:.1%}
+    Signals purchased: {len(result['signals_purchased'])}
+    ...
+    Explain why the agent made this decision in 2-3 sentences."""
+    
+    # Llama a Claude y retorna explicación
+    ...
+```
+
+#### 3.8.2 Características
+
+- **Silencioso**: Si no hay API key, el sistema funciona sin explicación
+- **Máximo 150 tokens**: Respuesta rápida
+- **Sin errores visibles**: Las excepciones se capturan y no afectan el flujo
+- **2-3 oraciones**: Conciso y factual
 
 ---
 
@@ -389,13 +429,23 @@ Network: Stellar Testnet
   },
   "bandit_state": {
     "ip-reputation": {
-      "alpha": 3.0,
-      "beta": 2.0,
-      "n_trials": 5,
-      "expected_value": 0.60
+      "alpha": 1,
+      "beta": 13,
+      "n_trials": 14,
+      "expected_value": 0.071
     },
-    "device-history": {...},
-    "tx-velocity": {...}
+    "device-history": {
+      "alpha": 1,
+      "beta": 20,
+      "n_trials": 21,
+      "expected_value": 0.048
+    },
+    "tx-velocity": {
+      "alpha": 1,
+      "beta": 18,
+      "n_trials": 19,
+      "expected_value": 0.053
+    }
   },
   "stellar_address": "GBULNFYDNJNDW2HLRJWVWQDYVPP5PDEJ56POOQXACD575GHQXQMGKF4S"
 }
@@ -455,88 +505,133 @@ Network: Stellar Testnet
       "prob_adjustment": 0.045,
       "voi": 0.023,
       "bandit_priority": 0.67
-    },
-    {
-      "signal_name": "tx-velocity",
-      "cost_usd": 0.0006,
-      "tx_hash": "b2c3d4e5f6a7...",
-      "data": {...},
-      "prob_adjustment": -0.085,
-      "voi": 0.015,
-      "bandit_priority": 0.72
     }
   ],
   "total_cost": 0.0008,
-  "elapsed_ms": 234.1
+  "elapsed_ms": 234.1,
+  "explanation": "The agent flagged this transaction as uncertain..."
 }
+```
+
+### 4.3 `POST /evaluate-stream`
+
+**Descripción**: Versión streaming del endpoint `/evaluate`. Envía Server-Sent Events (SSE) para proporcionar actualizaciones en tiempo real.
+
+**Eventos transmitidos:**
+
+| Tipo | Descripción |
+|------|-------------|
+| `step_start` | Indica que un paso comenzó |
+| `step_complete` | Un paso se completó con datos |
+| `signal_start` | Compra de señal iniciada |
+| `signal_complete` | Señal comprada exitosamente |
+| `explanation` | Texto de Claude (si está configurado) |
+| `done` | Todos los pasos completados |
+
+**Ejemplo de flujo:**
+```
+data: {"type": "step_start", "step": "model", "message": "Running XGBoost model..."}
+data: {"type": "step_complete", "step": "model", "data": {"prob_fraud": 0.48, ...}}
+data: {"type": "step_start", "step": "zone", "message": "Assessing risk zone: AMBIGUOUS"}
+data: {"type": "step_complete", "step": "zone", "data": {"risk_zone": "AMBIGUOUS", ...}}
+data: {"type": "signal_start", "round": 1, "signal_name": "ip-reputation", ...}
+data: {"type": "signal_complete", "round": 1, "signal": {...}, "current_prob": 0.52}
+data: {"type": "explanation", "text": "The agent flagged this..."}
+data: [DONE]
 ```
 
 ---
 
-## 5. Dashboard de Visualización
+## 5. Dashboard "Proof of Value"
 
-### 5.1 Features Implementadas
+El dashboard está diseñado para responder en <10 segundos:
+1. ¿El agente mejoró la decisión?
+2. ¿Valió la pena pagar por las señales?
+3. ¿Cuánto dinero se ahorró?
+
+### 5.1 Layout del Dashboard
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│  FraudSignal Agent          Stellar Hacks 2026  [●]           │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  ┌──────────────────┐    ┌──────────────────────────────────┐ │
-│  │ Transaction Input │    │ Result Panel                     │ │
-│  │                   │    │                                  │ │
-│  │ Presets:          │    │ ┌──────────────────────────────┐  │ │
-│  │ [Fraud] [Legit]   │    │ │ 🚨 FRAUD                    │  │ │
-│  │ [Uncertain]       │    │ │ Transaction flagged...      │  │ │
-│  │                   │    │ │              Cost: $0.000   │  │ │
-│  │ Amount: [2500.00] │    │ └──────────────────────────────┘  │ │
-│  │ Hour:   [3     ]  │    │                                  │ │
-│  │ Country: [Yes ▼]  │    │ Fraud Probability                 │ │
-│  │ New Acct: [Yes▼]  │    │ ████████████░░░░░░░ 78.2%        │ │
-│  │ Device:  [2 days] │    │                                  │ │
-│  │ Tx/24h:  [28    ]  │    │ Confidence Interval              │ │
-│  │                   │    │ [====|====] [65% - 89%]          │ │
-│  │ [⚡ Evaluate]     │    │                                  │ │
-│  └──────────────────┘    │ Risk Zone: RISKY                  │ │
-│                          │                                  │ │
-│  ┌──────────────────┐    │ ┌──────┬─────────┬──────────┐    │ │
-│  │ Model Info       │    │ │ 12%  │    0    │   45ms   │    │ │
-│  │ ROC-AUC: 98.7%   │    │ │Uncert│ Bought  │ Time     │    │ │
-│  │ PR: 89.1%        │    │ └──────┴─────────┴──────────┘    │ │
-│  └──────────────────┘    │                                  │ │
-│                          │ Signals Purchased                 │ │
-│                          │ ┌──────────────────────────────┐  │ │
-│                          │ │ ip-reputation        $0.0002  │  │ │
-│                          │ │ TX: a1b2c3...7890  [Link]   │  │ │
-│                          │ │ +4.5% fraud ↑     VOI:+2.3%  │  │ │
-│                          │ │ Risk Score: 0.85             │  │ │
-│                          │ └──────────────────────────────┘  │ │
-│                          │                                  │ │
-│                          │ Agent Learning                   │ │
-│                          │ ┌──────────────────────────────┐  │ │
-│                          │ │ ip-reputation                │  │ │
-│                          │ │ alpha:3 β:2 trials:5 60%    │  │ │
-│                          │ │ [████████████░░░░░░░░░]     │  │ │
-│                          │ └──────────────────────────────┘  │ │
-│                          │                                  │ │
-│                          │ Agent Reasoning                  │ │
-│                          │ [1] Initial: prob=0.782...       │ │
-│                          │ [2] Zone: RISKY...              │ │
-│                          └──────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  HEADER: SCORYTHM + Tagline                                     │
+├─────────────────────────────────────────────────────────────────┤
+│  INPUT FORM                    │  Evidence Flow                  │
+│  [Fraud] [Legit] [Uncertain] │  Baseline → Signal → Final    │
+│                                │  48.5%  → 52.8% → 58.7%      │
+│  Amount: $2500               │  AMBIGUOUS    +4.3%   FRAUD ✓ │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  DECISION TIMELINE (Step Line Chart)                             │
+│  ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━●                       │
+│  Baseline    signal #1     signal #2     Final                   │
+│  48.5%       52.8%         58.7%        58.7%                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────┐  ┌────────────────────────────────┐
+│  ⚖ COUNTERFACTUAL         │  │  $ ECONOMIC IMPACT             │
+│                            │  │                                │
+│  WITH AGENT  WITHOUT AGENT│  │  Amount at risk:  $2,500.00   │
+│  58.7%        48.5%      │  │  Loss Avoided:    $2,499.99  │
+│  FRAUD ✓      LEGITIMATE ✗│  │  Agent Cost:           $0.004 │
+│                            │  │  NET SAVINGS:     +$2,499.99  │
+│  ✓ IMPROVED DECISION      │  │                                │
+└────────────────────────────┘  └────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  WHY THIS SIGNAL:                                                │
+│  Selected due to highest VOI (0.3055) under uncertainty.        │
+│  Signal increased fraud probability by +4.3%.                      │
+│  TX: 949aad26209a... [View on Stellar Expert]                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Visualizaciones Implementadas
+### 5.2 Panel Counterfactual
 
-| Visualización | Descripción | Archivo |
-|---------------|-------------|---------|
-| Probability Bar | Barra animada con gradiente de color según decisión | index.html |
-| Confidence Interval | Intervalo con marcador de punto estimado | index.html |
-| Risk Zone Badge | Indicador visual RISKY/SAFE/AMBIGUOUS | index.html |
-| Signal Cards | Cards con TX hash, badges VOI/Bandit, datos | app.js |
-| Stellar Expert Links | Links a transacciones en explorer | app.js |
-| Bandit Progress Bars | Barras de E[success] por señal | app.js |
-| Decision Reasoning | Trace numerado del proceso de decisión | app.js |
+Muestra la diferencia entre:
+- **Con agente**: Decisión final con señales compradas
+- **Sin agente**: Decisión que habría tomado el modelo base
+
+Si las decisiones difieren, muestra "IMPROVED DECISION" con badge verde.
+
+### 5.3 Panel Economic Impact
+
+Calcula el valor real del agente:
+- **Amount at risk**: El monto de la transacción
+- **Loss Avoided**: Si se bloqueó un fraude, cuánto se evitó perder
+- **Agent Cost**: Lo que costaron las señales
+- **Net Savings**: Loss Avoided - Agent Cost
+
+### 5.4 Evidence Flow
+
+Flujo visual que muestra:
+1. **Baseline**: Probabilidad inicial del modelo
+2. **Signal #1**: Impacto de la primera señal comprada
+3. **Signal #2**: Impacto de la segunda señal comprada
+4. **Final**: Decisión final con badge ✓/✗
+
+### 5.5 Signal Cards con "WHY"
+
+Cada señal comprada muestra:
+- Costo y ajuste de probabilidad
+- TX hash en Stellar (verificable)
+- **WHY THIS SIGNAL**: Explicación de por qué fue seleccionada
+  - VOI score
+  - Bandit priority
+  - Impacto en la probabilidad
+
+### 5.6 Visualizaciones Implementadas
+
+| Visualización | Descripción | Estado |
+|---------------|-------------|--------|
+| Evidence Flow | Flujo numérico Baseline → Signals → Final | ✅ |
+| Step Line Chart | Gráfico SVG con saltos de probabilidad | ✅ |
+| Counterfactual | Con/Sin agente lado a lado | ✅ |
+| Economic Impact | Savings basados en monto de transacción | ✅ |
+| Signal Cards + WHY | Cards con razón de selección | ✅ |
+| Bandit Bars | Barras + usos + tendencias | ✅ |
+| Audit Trace | Collapsible con TX links | ✅ |
+| Explanation Card | Texto de Claude en lenguaje natural | ✅ |
 
 ---
 
@@ -544,8 +639,10 @@ Network: Stellar Testnet
 
 ```
 fraud-agent/
-├── .env                          # STELLAR_SECRET (secretos)
+├── .env                          # STELLAR_SECRET, ANTHROPIC_API_KEY
+├── .env.example                  # Template de variables de entorno
 ├── requirements.txt              # Python dependencies
+├── run_server.py                 # Quick launcher para FastAPI
 ├── README.md                     # Documentación
 │
 ├── model/
@@ -553,22 +650,22 @@ fraud-agent/
 │   └── train.py                 # Training pipeline
 │
 ├── agent/
-│   ├── agent.py                 # Core: VOI + Bandit + Decision
+│   ├── agent.py                 # Core: VOI + Bandit + Decision + Stream
 │   ├── bandit.py                # Thompson Sampling implementation
-│   ├── x402_client.py           # Stellar payment client
+│   ├── x402_client.py           # Stellar payment client (XLM native)
 │   ├── uncertainty.py           # Uncertainty calculations
-│   └── signals.py               # Signal catalog & fetchers
+│   └── explainer.py             # Claude API integration
 │
 ├── api/
-│   ├── main.py                  # FastAPI endpoints
+│   ├── main.py                  # FastAPI endpoints (/evaluate, /evaluate-stream)
 │   └── schemas.py               # Pydantic models
 │
 ├── server/
-│   └── index.js                 # Node.js proxy + x402 server
+│   └── index.js                 # Node.js: x402 server + frontend serving
 │
 ├── frontend/
 │   ├── index.html               # Dashboard UI
-│   └── app.js                   # Dashboard logic
+│   └── app.js                   # Dashboard logic (streaming + fallback)
 │
 └── data/
     ├── model.joblib             # Trained model
@@ -578,39 +675,52 @@ fraud-agent/
 
 ---
 
-## 7. Comandos de Ejecución
+## 7. Variables de Entorno
 
 ```bash
-# 1. Windows: Abrir WSL
-wsl
+# ─── Stellar Testnet ─────────────────────────────────────────
+STELLAR_ADDRESS=GBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+STELLAR_SECRET=SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+SERVER_URL=http://localhost:3000
+FACILITATOR_URL=https://x402.org/facilitator
 
-# 2. Crear/entrar al virtual environment
-cd /mnt/c/Users/bever/Desktop/fraud-agent
+# ─── Claude (Anthropic) — para explicaciones ✨NUEVO ──────────
+ANTHROPIC_API_KEY=sk-ant-...  # Opcional
+```
+
+---
+
+## 8. Comandos de Ejecución
+
+```bash
+# 1. Crear/entrar al virtual environment
 python -m venv venv
-source venv/Scripts/activate
+source venv/bin/activate  # Linux/Mac
+# o: venv\Scripts\activate  # Windows
 
-# 3. Instalar dependencias Python
+# 2. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Verificar .env con secrets
-cat .env
+# 3. Configurar .env
+cp .env.example .env
+# Editar .env con:
+#   - STELLAR_SECRET (obligatorio)
+#   - ANTHROPIC_API_KEY (opcional, para explicaciones)
 
-# 5. Entrar al directorio del proyecto (para imports relativos)
-cd /mnt/c/Users/bever/Desktop/fraud-agent
+# 4. Terminal 1: FastAPI
+python run_server.py
+# O: uvicorn api.main:app --reload --port 8000
 
-# 6. Terminal 1: Iniciar servidor Node.js (con x402 simplificado)
+# 5. Terminal 2: Servidor Node.js (sirve frontend en :3000)
 node server/index.js
 
-# 7. Terminal 2: Iniciar FastAPI
-uvicorn api.main:app --reload --port 8000
-
-# 8. Abrir navegador
+# 6. Abrir navegador
 # http://localhost:3000
 ```
 
 ---
 
-## 8. Logros Técnicos
+## 9. Logros Técnicos
 
 | Logro | Descripción | Estado |
 |-------|-------------|--------|
@@ -623,70 +733,23 @@ uvicorn api.main:app --reload --port 8000
 | Dashboard interactivo | Visualización completa + presets | ✅ |
 | Links Stellar Expert | TX hashes clickeables | ✅ |
 | Estado persistente | Bandit y modelo se guardan a disco | ✅ |
+| Streaming en vivo | Pipeline visible durante evaluación | ✅ |
+| Live Probability Tracker | Gráfico animado en tiempo real | ✅ |
+| Explicabilidad con Claude | Decisiones en lenguaje natural | ✅ |
+| Fallback automático | Funciona sin streaming si falla | ✅ |
+| Bandit mejorado | Barras + usos + tendencias | ✅ |
+| run_server.py | Launcher rápido para FastAPI | ✅ |
 
 ---
 
-## 9. Limitaciones y Problemas Conocidos
+## 10. Limitaciones y Problemas Conocidos
 
 | Problema | Impacto | Solución Actual |
 |----------|---------|-----------------|
-| Facilitator público no soporta XLM testnet | No se puede usar servidor x402 estándar | Servidor propio simplificado que verifica hash |
-| USDC issuer inválido | No se pueden usar stablecoins en testnet | Usar XLM nativo directamente |
+| USDC issuer no funciona en testnet | No se pueden usar stablecoins | Usar XLM nativo directamente |
 | Synthetic dataset | El modelo se entrena con datos simulados | Para producción, entrenar con datos reales |
-| Sin persistencia de decisiones | El bandit guarda estado entre requests | Bandit state se guarda en JSON |
-
----
-
-## 10. Pasos Siguientes
-
-### 10.1 Corto Plazo (para demo del hackathon)
-
-1. **Probar flujo completo**
-   - Correr servers
-   - Evaluar transacción "Uncertain" preset
-   - Verificar que se compran señales
-   - Confirmar TX hashes en Stellar Expert testnet
-
-2. **Grabar demo en video**
-   - 30-60 segundos mostrando el dashboard
-   - Transacción clara → aprobación inmediata
-   - Transacción ambigua → compra de señales
-   - Mostrar link de Stellar Expert
-
-3. **Limpiar código**
-   - Agregar comments donde falten
-   - Verificar que no haya hardcoded secrets en código
-
-### 10.2 Medio Plazo (post-hackathon)
-
-1. **Integrar Signal Providers reales**
-   - IP Reputation: API de IPQualityScore o similar
-   - Device Fingerprint: Servicio como FingerprintJS
-   - TX Velocity: Webhook de blockchain analytics
-
-2. **Dashboard mejorado**
-   - Gráfico de aprendizaje del bandit en tiempo real
-   - Historial de decisiones
-   - Costos acumulados
-
-3. **Producción**
-   - Mover a Stellar Mainnet
-   - Usar servidor x402 con facilitator propio
-   - Integrar con wallets reales (Albedo, Freighter)
-
-### 10.3 Largo Plazo
-
-1. **Señales dinámicas**
-   - Nuevos signals se agregan automáticamente al bandit
-   - Descubrimiento de signals via marketplace
-
-2. **Multi-chain**
-   - Extender a Solana, Ethereum via x402
-   - Agregar señales on-chain cross-chain
-
-3. **Modelo auto-actualizable**
-   - Retraining semanal con nuevo data
-   - A/B testing de thresholds
+| ANTHROPIC_API_KEY opcional | Sin API key no hay explicación | Sistema funciona sin explicación (sin error) |
+| Facilitator público no soportado | Servidor x402 estándar no funciona | Servidor propio que verifica hash de TX |
 
 ---
 
@@ -701,6 +764,8 @@ uvicorn api.main:app --reload --port 8000
 | **Value of Information (VOI)** | Valor esperado de reducir incertidumbre |
 | **x402** | Protocolo de micropagos HTTP |
 | **Stellar Testnet** | Red de pruebas de Stellar (no dinero real) |
+| **SSE (Server-Sent Events)** | Protocolo para enviar actualizaciones en tiempo real |
+| **Claude API** | API de Anthropic para generación de lenguaje natural |
 | **Confidence Interval** | Rango donde se espera que esté el valor real |
 | **False Positive** | Bloquear transacción legítima |
 | **False Negative** | Aprobar transacción fraudulenta |
@@ -713,9 +778,10 @@ uvicorn api.main:app --reload --port 8000
 - XGBoost — por el modelo de ML
 - Sklearn — por CalibratedClassifierCV
 - Stellar SDK Python — por la integración con Stellar
+- Anthropic — por Claude API para explicaciones
 - Conformal Prediction — por la teoría de intervalos
 
 ---
 
-*Documento generado: 8 de Abril 2026*
-*Proyecto: FraudSignal Agent — Stellar Hacks 2026*
+*Documento actualizado: 12 de Abril 2026*
+*Proyecto: Scorythm Agent — Stellar Hacks 2026*

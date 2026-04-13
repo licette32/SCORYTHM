@@ -1,7 +1,7 @@
 """
 api/schemas.py
 ==============
-Pydantic v2 schemas for the FraudSignal Agent API.
+Pydantic v2 schemas for the Scorythm Agent API.
 
 Defines the request and response models for the /evaluate endpoint.
 """
@@ -68,6 +68,22 @@ class Transaction(BaseModel):
         le=500,
         description="Number of transactions made by this account in the last 24 hours",
         examples=[3, 28, 1],
+    )
+
+    device_risk_score: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Composite device risk score [0-1]. 0=trusted device, 1=high-risk device.",
+        examples=[0.1, 0.5, 0.9],
+    )
+
+    email_domain_risk: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=1.0,
+        description="Risk score of the email domain [0-1]. 0=trusted domain, 1=high-risk domain.",
+        examples=[0.05, 0.4, 0.85],
     )
 
     @field_validator("country_mismatch", "new_account", mode="before")
@@ -141,7 +157,7 @@ class SignalPurchase(BaseModel):
 
 class EvaluationResult(BaseModel):
     """
-    Complete result of a transaction fraud evaluation by the FraudSignal Agent.
+    Complete result of a transaction fraud evaluation by the Scorythm Agent.
     """
 
     prob_fraud: float = Field(
@@ -218,6 +234,11 @@ class EvaluationResult(BaseModel):
         description="Total evaluation time in milliseconds",
     )
 
+    amount: Optional[float] = Field(default=None, description="Transaction amount")
+    hour: Optional[int] = Field(default=None, description="Transaction hour")
+    country_mismatch: Optional[int] = Field(default=None, description="Country mismatch flag")
+    new_account: Optional[int] = Field(default=None, description="New account flag")
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -267,7 +288,7 @@ class HealthResponse(BaseModel):
     """Response for the /health endpoint."""
 
     status: str = Field(default="ok")
-    service: str = Field(default="FraudSignal Agent API")
+    service: str = Field(default="Scorythm Agent API")
     model_loaded: bool = Field(description="Whether the ML model is loaded")
     model_metrics: Optional[dict[str, float]] = Field(
         default=None,

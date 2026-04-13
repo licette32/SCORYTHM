@@ -1,4 +1,4 @@
-# FraudSignal Agent — Python dependencies
+# Scorythm Agent — Python dependencies
 # Install with: pip install -r requirements.txt
 
 # ─── API ──────────────────────────────────────────────────────────────────────
@@ -18,3 +18,6 @@ stellar-sdk>=11.0.0
 # ─── Utilities ────────────────────────────────────────────────────────────────
 python-dotenv>=1.0.0
 requests>=2.31.0
+
+# ─── AI Explanations ─────────────────────────────────────────────────────────
+anthropic>=0.40.0

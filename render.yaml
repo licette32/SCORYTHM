@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: scorythm-api
+    env: python
+    buildCommand: pip install -r requirements.txt && python model/train.py
+    startCommand: python run_server.py
+    envVars:
+      - key: STELLAR_ADDRESS
+        sync: false
+      - key: STELLAR_SECRET
+        sync: false
+      - key: SERVER_STELLAR_ADDRESS
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: IPQS_API_KEY
+        sync: false
+      - key: PORT
+        value: 8000

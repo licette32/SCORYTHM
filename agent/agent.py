@@ -1,7 +1,7 @@
 """
 agent/agent.py
 =============
-FraudSignal Agent — Core decision-making logic.
+Scorythm Agent — Core decision-making logic.
 
 The agent evaluates a financial transaction by:
   1. Running the calibrated XGBoost model to get prob_fraud + uncertainty + CI
@@ -23,7 +23,8 @@ from __future__ import annotations
 import sys
 import os
 import time
-from typing import Any
+import asyncio
+from typing import Any, AsyncGenerator
 
 # ─── Path setup for running as script or imported from api/ ──────────────────
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,7 +38,7 @@ from agent.uncertainty import (
     expected_utility,
     uncertainty_to_zone,
 )
-from agent.x402_client import fetch_signal, SIGNAL_CATALOG
+from agent.x402_client import fetch_signal, SIGNAL_CATALOG, _compute_prob_adjustment
 from agent.bandit import ThompsonBandit
 
 # ─── Agent configuration ─────────────────────────────────────────────────────
@@ -264,11 +265,12 @@ def _apply_signal_adjustment(
     """
     Adjusts the fraud probability based on signal data.
 
-    Uses the fraud_probability_adjustment field from the signal response,
-    which encodes the signal's directional impact on fraud probability.
-
-    The adjustment is applied as a weighted blend:
-      new_prob = clip(base_prob + adjustment * weight, 0, 1)
+    Priority order for adjustment:
+    1. _compute_prob_adjustment(signal_name, data) — computed from signal fields
+       (e.g. is_vpn, fraud_flag, velocity_flag). This gives meaningful +0.12–+0.30
+       or -0.06–-0.15 adjustments based on actual risk indicators.
+    2. fraud_probability_adjustment field from server response (legacy fallback).
+    3. Zero if neither is available.
 
     Parameters
     ----------
@@ -282,16 +284,17 @@ def _apply_signal_adjustment(
     float
         Adjusted fraud probability, clipped to [0, 1].
     """
-    data = signal_result.get("data") or {}
-    adjustment = float(data.get("fraud_probability_adjustment", 0.0))
-
-    # Weight the adjustment by the signal's utility score
     signal_name = signal_result.get("signal_name", "")
-    utility = SIGNAL_CATALOG.get(signal_name, {}).get("utility_score", 0.5)
+    data = signal_result.get("data") or {}
 
-    # Blend: new_prob = base_prob + adjustment * utility_weight
-    # The adjustment is already directional (positive = more fraud risk)
-    new_prob = base_prob + (adjustment * utility * 0.5)
+    # Primary: compute from signal fields (meaningful, consistent adjustments)
+    if data and signal_name:
+        adjustment = _compute_prob_adjustment(signal_name, data)
+    else:
+        # Fallback: use server-provided field (may be small/zero)
+        adjustment = float(data.get("fraud_probability_adjustment", 0.0))
+
+    new_prob = base_prob + adjustment
     return float(max(0.0, min(1.0, new_prob)))
 
 
@@ -430,12 +433,12 @@ def evaluate_transaction(transaction: dict) -> dict:
     # ── Step 3: Load Thompson Sampling bandit ──────────────────────────────────
     bandit = _get_bandit()
 
-    # ── Step 4: Check if in ambiguous zone → VOI + bandit mode ───────────────
-    # Solo compramos señales si el intervalo de confianza contiene 0.5.
-    # Esto significa que ni podemos confirmar fraude ni legimitidad.
-    in_ambiguous_zone = initial_conf_low <= 0.5 <= initial_conf_high
+    # ── Step 4: Check if uncertain → VOI + bandit mode ───────────────────────
+    # Compramos señales si la incertidumbre (u = 1 - |2p-1|) supera el threshold.
+    # Esto significa que la probabilidad está cerca de 0.5 y no estamos seguros.
+    should_buy_signals = is_uncertain(initial_prob, threshold=UNCERTAINTY_THRESHOLD)
 
-    if in_ambiguous_zone:
+    if should_buy_signals:
         purchased_names: list[str] = []
         bandit_priorities: dict[str, float] = {}
 
@@ -459,8 +462,18 @@ def evaluate_transaction(transaction: dict) -> dict:
                 [s for s in available_signals if s not in purchased_names]
             )
 
+            # Compute risk_hint from current probability to guide signal server pool.
+            # In ambiguous zone (0.35-0.65) always use "neutral" so the signal data
+            # reflects genuine uncertainty — not artificially low or high risk.
+            if current_prob >= 0.60:
+                _risk_hint = "high"
+            elif current_prob < 0.35:
+                _risk_hint = "low"
+            else:
+                _risk_hint = "neutral"
+
             # Purchase the signal via x402 micropayment
-            signal_result = fetch_signal(best_signal)
+            signal_result = fetch_signal(best_signal, risk_hint=_risk_hint)
             cost = signal_result["cost_usd"]
             total_cost += cost
 
@@ -491,13 +504,12 @@ def evaluate_transaction(transaction: dict) -> dict:
                 break
 
         # ── Step 5: Update bandit with rewards ────────────────────────────────
-        # Reward = 1 if we escaped the uncertain zone, 0 otherwise
-        final_in_ambiguous = initial_conf_low <= 0.5 <= initial_conf_high
-        exited_ambiguous = final_in_ambiguous and not (initial_conf_low <= 0.5 <= initial_conf_high)
+        # Reward = 1 if we escaped the uncertain zone (uncertainty below threshold), 0 otherwise
+        # The bandit learns: did the signal help reduce uncertainty?
+        reward = 1 if not is_uncertain(current_prob, threshold=UNCERTAINTY_THRESHOLD) else 0
 
         for sig in signals_purchased:
             sig_name = sig["signal_name"]
-            reward = 1 if not is_uncertain(current_prob, threshold=UNCERTAINTY_THRESHOLD) else 0
             bandit.update(sig_name, reward)
 
         # Save bandit state
@@ -505,7 +517,7 @@ def evaluate_transaction(transaction: dict) -> dict:
 
     # ── Step 6: Compute VOI scores for all signals ───────────────────────────
     voi_scores = {}
-    if in_ambiguous_zone:
+    if should_buy_signals:
         voi_scores = compute_all_voi_scores(initial_prob, available_signals)
 
     # ── Step 7: Final decision ────────────────────────────────────────────────
@@ -540,7 +552,263 @@ def evaluate_transaction(transaction: dict) -> dict:
         "initial_prob_fraud": round(initial_prob, 6),
         "initial_uncertainty": round(initial_uncertainty, 6),
         "elapsed_ms": round(elapsed_ms, 2),
+        "amount": transaction.get("amount"),
+        "hour": transaction.get("hour"),
+        "country_mismatch": transaction.get("country_mismatch"),
+        "new_account": transaction.get("new_account"),
     }
+
+
+async def evaluate_transaction_stream(transaction: dict) -> AsyncGenerator[dict, None]:
+    """
+    Streaming version of evaluate_transaction. Yields events as each step
+    is completed, allowing real-time UI updates.
+    
+    Event types:
+      - step_start: A new step has started
+      - step_complete: A step has been completed with data
+      - signal_start: A signal purchase has started
+      - signal_complete: A signal has been purchased successfully
+      - done: All processing is complete with final result
+    """
+    start_time = time.monotonic()
+
+    yield {
+        "type": "step_start",
+        "step": "model",
+        "message": "Running XGBoost model..."
+    }
+
+    prediction = model_predict(transaction)
+    initial_prob = prediction["prob_fraud"]
+    initial_uncertainty = prediction["uncertainty"]
+    initial_conf_low = prediction["conf_low"]
+    initial_conf_high = prediction["conf_high"]
+
+    yield {
+        "type": "step_complete",
+        "step": "model",
+        "data": {
+            "prob_fraud": round(initial_prob, 6),
+            "uncertainty": round(initial_uncertainty, 6),
+            "conf_low": round(initial_conf_low, 6),
+            "conf_high": round(initial_conf_high, 6),
+            "amount": transaction.get("amount", 0),
+        }
+    }
+
+    current_prob = initial_prob
+    signals_purchased: list[dict] = []
+    total_cost = 0.0
+    available_signals = list(SIGNAL_CATALOG.keys())
+
+    risk_zone = "AMBIGUOUS"
+    if initial_conf_low > 0.5:
+        risk_zone = "RISKY"
+    elif initial_conf_high < 0.2:
+        risk_zone = "SAFE"
+
+    yield {
+        "type": "step_start",
+        "step": "zone",
+        "message": f"Assessing risk zone: {risk_zone}"
+    }
+
+    should_buy_signals = is_uncertain(initial_prob, threshold=UNCERTAINTY_THRESHOLD)
+
+    yield {
+        "type": "step_complete",
+        "step": "zone",
+        "data": {
+            "risk_zone": risk_zone,
+            "should_buy_signals": should_buy_signals,
+            "uncertainty_threshold": UNCERTAINTY_THRESHOLD,
+        }
+    }
+
+    if not should_buy_signals:
+        final_uncertainty = calculate_uncertainty(current_prob)
+        decision = _make_decision(current_prob, signals_purchased)
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+        reasoning = _build_reasoning(
+            initial_prob=initial_prob,
+            initial_uncertainty=initial_uncertainty,
+            initial_conf_low=initial_conf_low,
+            initial_conf_high=initial_conf_high,
+            risk_zone=risk_zone,
+            signals_purchased=signals_purchased,
+            final_prob=current_prob,
+            final_decision=decision,
+            elapsed_ms=elapsed_ms,
+        )
+
+        yield {
+            "type": "step_start",
+            "step": "decision",
+            "message": "Making final decision (model confident)..."
+        }
+
+        yield {
+            "type": "step_complete",
+            "step": "decision",
+            "data": {
+                "decision": decision,
+                "prob_fraud": round(current_prob, 6),
+                "uncertainty": round(final_uncertainty, 6),
+                "signals_purchased": signals_purchased,
+                "total_cost": 0.0,
+                "reasoning": reasoning,
+                "initial_prob_fraud": round(initial_prob, 6),
+                "initial_uncertainty": round(initial_uncertainty, 6),
+                "elapsed_ms": round(elapsed_ms, 2),
+            }
+        }
+
+        yield {"type": "done"}
+        return
+
+    yield {
+        "type": "step_start",
+        "step": "signals",
+        "message": "Model uncertain — entering VOI signal purchase mode..."
+    }
+
+    bandit = _get_bandit()
+    purchased_names: list[str] = []
+
+    for _round in range(MAX_SIGNALS):
+        best_signal = decide_signal(
+            current_prob,
+            available_signals,
+            purchased_names,
+            bandit=bandit,
+        )
+        if best_signal is None:
+            break
+
+        voi_scores = compute_all_voi_scores(
+            current_prob,
+            [s for s in available_signals if s not in purchased_names]
+        )
+
+        yield {
+            "type": "signal_start",
+            "round": _round + 1,
+            "signal_name": best_signal,
+            "voi_scores": voi_scores,
+            "bandit_priority": bandit.get_priority(best_signal),
+            "message": f"Buying signal {best_signal}..."
+        }
+
+        await asyncio.sleep(0.1)
+
+        # Compute risk_hint for streaming version too
+        if current_prob >= 0.60:
+            _stream_risk_hint = "high"
+        elif current_prob < 0.35:
+            _stream_risk_hint = "low"
+        else:
+            _stream_risk_hint = "neutral"
+
+        signal_result = fetch_signal(best_signal, risk_hint=_stream_risk_hint)
+        cost = signal_result["cost_usd"]
+        total_cost += cost
+
+        prev_prob = current_prob
+        current_prob = _apply_signal_adjustment(current_prob, signal_result)
+        prob_adjustment = current_prob - prev_prob
+
+        purchased_names.append(best_signal)
+        signal_record = {
+            "signal_name": best_signal,
+            "cost_usd": cost,
+            "data": signal_result.get("data"),
+            "tx_hash": signal_result.get("tx_hash") or "N/A",
+            "latency_ms": signal_result.get("latency_ms", 0.0),
+            "prob_adjustment": round(prob_adjustment, 6),
+            "error": signal_result.get("error"),
+            "offline_simulation": signal_result.get("offline_simulation", False),
+            "voi": voi_scores.get(best_signal, 0.0),
+            "bandit_priority": bandit.get_priority(best_signal),
+        }
+        signals_purchased.append(signal_record)
+
+        yield {
+            "type": "signal_complete",
+            "round": _round + 1,
+            "signal": signal_record,
+            "prob_before": round(prev_prob, 6),
+            "prob_after": round(current_prob, 6),
+            "current_prob": round(current_prob, 6),
+            "message": f"Signal purchased: {best_signal}"
+        }
+
+        if not is_uncertain(current_prob, threshold=UNCERTAINTY_THRESHOLD):
+            break
+
+    reward = 1 if not is_uncertain(current_prob, threshold=UNCERTAINTY_THRESHOLD) else 0
+    for sig in signals_purchased:
+        sig_name = sig["signal_name"]
+        bandit.update(sig_name, reward)
+    _save_bandit()
+
+    final_uncertainty = calculate_uncertainty(current_prob)
+    decision = _make_decision(current_prob, signals_purchased)
+    elapsed_ms = (time.monotonic() - start_time) * 1000
+
+    final_voi_scores = compute_all_voi_scores(initial_prob, available_signals)
+    reasoning = _build_reasoning(
+        initial_prob=initial_prob,
+        initial_uncertainty=initial_uncertainty,
+        initial_conf_low=initial_conf_low,
+        initial_conf_high=initial_conf_high,
+        risk_zone=risk_zone,
+        signals_purchased=signals_purchased,
+        final_prob=current_prob,
+        final_decision=decision,
+        elapsed_ms=elapsed_ms,
+    )
+
+    yield {
+        "type": "step_complete",
+        "step": "signals",
+        "data": {
+            "signals_purchased": signals_purchased,
+            "total_cost": round(total_cost, 6),
+        }
+    }
+
+    yield {
+        "type": "step_start",
+        "step": "decision",
+        "message": f"Making final decision with {len(signals_purchased)} signals..."
+    }
+
+    yield {
+        "type": "step_complete",
+        "step": "decision",
+        "data": {
+            "decision": decision,
+            "prob_fraud": round(current_prob, 6),
+            "uncertainty": round(final_uncertainty, 6),
+            "conf_low": round(initial_conf_low, 6),
+            "conf_high": round(initial_conf_high, 6),
+            "risk_zone": risk_zone,
+            "voi_scores": final_voi_scores,
+            "signals_purchased": signals_purchased,
+            "total_cost": round(total_cost, 6),
+            "reasoning": reasoning,
+            "initial_prob_fraud": round(initial_prob, 6),
+            "initial_uncertainty": round(initial_uncertainty, 6),
+            "elapsed_ms": round(elapsed_ms, 2),
+            "amount": transaction.get("amount"),
+            "hour": transaction.get("hour"),
+            "country_mismatch": transaction.get("country_mismatch"),
+            "new_account": transaction.get("new_account"),
+        }
+    }
+
+    yield {"type": "done"}
 
 
 # ─── CLI demo ─────────────────────────────────────────────────────────────────
@@ -584,7 +852,7 @@ if __name__ == "__main__":
     ]
 
     print("\n" + "=" * 70)
-    print("FraudSignal Agent — Demo Evaluation")
+    print("Scorythm Agent — Demo Evaluation")
     print("=" * 70)
 
     for case in demo_transactions:

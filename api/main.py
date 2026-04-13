@@ -1,7 +1,7 @@
 """
 api/main.py
 ===========
-FastAPI application for the FraudSignal Agent.
+FastAPI application for the Scorythm Agent.
 
 Endpoints:
   POST /evaluate  — Evaluates a transaction for fraud
@@ -27,16 +27,19 @@ if _ROOT not in sys.path:
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import time
+import json
+import asyncio
 
 from api.schemas import Transaction, EvaluationResult, HealthResponse
-from agent.agent import evaluate_transaction, _get_bandit
+from agent.agent import evaluate_transaction, _get_bandit, evaluate_transaction_stream
+from agent.explainer import explain_decision
 from model.predict import get_model_metrics
 
 # ─── App initialization ───────────────────────────────────────────────────────
 app = FastAPI(
-    title="FraudSignal Agent API",
+    title="Scorythm Agent API",
     description=(
         "An AI agent that detects financial fraud using calibrated uncertainty "
         "from XGBoost and autonomously purchases external signals via x402 "
@@ -71,9 +74,9 @@ async def startup_event():
         _model_metrics = get_model_metrics()
         _model_ready = True
         auc = _model_metrics.get("roc_auc", "N/A")
-        print(f"[startup] ✅ Model loaded. ROC-AUC = {auc}")
+        print(f"[startup] OK - Model loaded. ROC-AUC = {auc}")
     except Exception as exc:
-        print(f"[startup] ⚠️  Model not loaded: {exc}")
+        print(f"[startup] WARNING - Model not loaded: {exc}")
         print("[startup] The model will be trained on first request.")
         _model_ready = False
 
@@ -95,7 +98,7 @@ async def add_process_time_header(request: Request, call_next):
     response_model=EvaluationResult,
     summary="Evaluate a transaction for fraud",
     description=(
-        "Runs the FraudSignal Agent on a financial transaction. "
+        "Runs the Scorythm Agent on a financial transaction. "
         "If the model is uncertain (prob_fraud between 0.35 and 0.65), "
         "the agent autonomously purchases external signals via x402 micropayments "
         "to reduce uncertainty before making a final decision."
@@ -115,6 +118,10 @@ async def evaluate(transaction: Transaction) -> EvaluationResult:
         tx_dict = transaction.model_dump()
         result = evaluate_transaction(tx_dict)
 
+        explanation = await explain_decision(result)
+        if explanation:
+            result["explanation"] = explanation
+
         # Convert signals_purchased list to SignalPurchase objects
         # (FastAPI will validate them against the schema)
         return EvaluationResult(**result)
@@ -124,6 +131,53 @@ async def evaluate(transaction: Transaction) -> EvaluationResult:
             status_code=500,
             detail=f"Agent evaluation failed: {str(exc)}",
         )
+
+
+@app.post(
+    "/evaluate-stream",
+    summary="Evaluate a transaction for fraud (with live streaming)",
+    description=(
+        "Streaming version of /evaluate. Sends Server-Sent Events (SSE) "
+        "to provide real-time updates as the agent processes the transaction, "
+        "runs the model, assesses risk zones, and purchases signals."
+    ),
+    tags=["Agent"],
+)
+async def evaluate_stream(transaction: Transaction):
+    """
+    Evaluate a transaction with live streaming updates.
+    Each step of the pipeline is streamed as it happens.
+    """
+    async def event_generator():
+        tx_dict = transaction.model_dump()
+        final_data = None
+
+        try:
+            async for event in evaluate_transaction_stream(tx_dict):
+                yield f"data: {json.dumps(event)}\n\n"
+                if event.get("type") == "done":
+                    break
+                if event.get("type") == "step_complete" and event.get("step") == "decision":
+                    final_data = event.get("data")
+
+            explanation = await explain_decision(final_data) if final_data else None
+            if explanation:
+                yield f"data: {json.dumps({'type': 'explanation', 'text': explanation})}\n\n"
+
+            yield f"data: [DONE]\n\n"
+        except Exception as exc:
+            error_event = {"type": "error", "error": str(exc)}
+            yield f"data: {json.dumps(error_event)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @app.get(
@@ -154,7 +208,7 @@ async def health() -> HealthResponse:
 
     return HealthResponse(
         status="ok",
-        service="FraudSignal Agent API",
+        service="Scorythm Agent API",
         model_loaded=_model_ready,
         model_metrics=_model_metrics if _model_metrics else None,
         bandit_state=bandit_state if bandit_state else None,
@@ -165,7 +219,7 @@ async def health() -> HealthResponse:
 @app.get("/", include_in_schema=False)
 async def root():
     return {
-        "service": "FraudSignal Agent API",
+        "service": "Scorythm Agent API",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health",

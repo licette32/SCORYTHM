@@ -59,35 +59,123 @@ SIGNAL_CATALOG: dict[str, dict] = {
 }
 
 
+def _compute_prob_adjustment(signal_name: str, data: dict) -> float:
+    """
+    Compute a meaningful probability adjustment from signal data.
+
+    Rules are designed so that:
+    - Risky signals push prob_fraud UP by +0.12 to +0.30
+    - Clean signals push prob_fraud DOWN by -0.06 to -0.15
+    - The adjustment is CONSISTENT with the data fields returned
+
+    This ensures the agent's signal purchases visibly change the fraud probability.
+    """
+    import random
+
+    rng = random.Random(str(sorted(data.items())))  # deterministic per data
+
+    if signal_name == "ip-reputation":
+        is_vpn = data.get("is_vpn", False)
+        is_tor = data.get("is_tor", False)
+        blacklisted = data.get("blacklisted", False)
+        risk_score = data.get("risk_score", 0.3)
+
+        if blacklisted or is_tor:
+            # Very high risk — strong upward push
+            return round(rng.uniform(0.20, 0.30), 4)
+        elif is_vpn or risk_score > 0.6:
+            # Moderate risk
+            return round(rng.uniform(0.12, 0.20), 4)
+        elif not is_vpn and not is_tor and not blacklisted and risk_score < 0.25:
+            # Clean IP — downward push
+            return round(rng.uniform(-0.12, -0.08), 4)
+        else:
+            # Neutral-ish
+            return round(rng.uniform(-0.04, 0.06), 4)
+
+    elif signal_name == "device-history":
+        fraud_flag = data.get("fraud_flag", False)
+        linked_accounts = data.get("linked_accounts", 1)
+        seen_before = data.get("seen_before", False)
+        device_age_days = data.get("device_age_days", 90)
+
+        if fraud_flag or linked_accounts > 5:
+            # Device has fraud history — strong upward push
+            return round(rng.uniform(0.22, 0.30), 4)
+        elif linked_accounts > 3 or device_age_days < 3:
+            # Suspicious device
+            return round(rng.uniform(0.14, 0.22), 4)
+        elif seen_before and not fraud_flag and linked_accounts <= 1 and device_age_days > 90:
+            # Trusted device — downward push
+            return round(rng.uniform(-0.15, -0.10), 4)
+        else:
+            return round(rng.uniform(-0.05, 0.08), 4)
+
+    elif signal_name == "tx-velocity":
+        transactions_1h = data.get("transactions_1h", 2)
+        transactions_24h = data.get("transactions_24h", 5)
+        velocity_flag = data.get("velocity_flag", False)
+        anomaly_detected = data.get("anomaly_detected", False)
+
+        if anomaly_detected or transactions_1h > 10:
+            # Extreme velocity — strong upward push
+            return round(rng.uniform(0.18, 0.28), 4)
+        elif velocity_flag or transactions_1h > 6:
+            # High velocity
+            return round(rng.uniform(0.10, 0.18), 4)
+        elif not velocity_flag and not anomaly_detected and transactions_1h <= 2 and transactions_24h <= 5:
+            # Low velocity — clean signal
+            return round(rng.uniform(-0.10, -0.06), 4)
+        else:
+            return round(rng.uniform(-0.03, 0.07), 4)
+
+    # Unknown signal — small neutral adjustment
+    return 0.0
+
+
 def _parse_402_response(response: requests.Response) -> dict | None:
     """
     Parse the PAYMENT-REQUIRED header from a 402 response.
-    
-    The header contains base64-encoded JSON with x402 payment details.
-    Returns parsed payment info or None if header is missing.
+
+    The server may offer multiple payment options (USDC preferred, XLM fallback).
+    We select USDC if available, otherwise fall back to native XLM.
+
+    Returns parsed payment info or None if header is missing/invalid.
     """
-    import base64
     import json
-    
+
     payment_header = response.headers.get("PAYMENT-REQUIRED")
     if not payment_header:
         return None
-    
+
     try:
         decoded = base64.b64decode(payment_header).decode()
         data = json.loads(decoded)
-        
-        accepts = data.get("accepts", [{}])
+
+        accepts = data.get("accepts", [])
         if not accepts:
             return None
-        
-        payment_spec = accepts[0]
-        
+
+        # Prefer USDC over native XLM
+        usdc_option = next(
+            (a for a in accepts if a.get("asset_code") == "USDC" or
+             (a.get("asset") and a.get("asset") not in ("native", "", None) and len(a.get("asset", "")) > 10)),
+            None,
+        )
+        xlm_option = next(
+            (a for a in accepts if a.get("asset") in ("native", None, "") or a.get("asset_code") == "XLM"),
+            None,
+        )
+
+        # Use USDC if available, else XLM
+        payment_spec = usdc_option or xlm_option or accepts[0]
+
         return {
             "scheme": payment_spec.get("scheme"),
             "network": payment_spec.get("network"),
             "amount": payment_spec.get("amount"),
             "asset": payment_spec.get("asset"),
+            "asset_code": payment_spec.get("asset_code", "XLM"),
             "payto": payment_spec.get("payTo"),
             "max_timeout_seconds": payment_spec.get("maxTimeoutSeconds"),
             "raw": data,
@@ -230,7 +318,7 @@ def _build_402_authorization_header(tx_hash: str) -> str:
     return base64.b64encode(json.dumps(payload).encode()).decode()
 
 
-def fetch_signal(signal_name: str, timeout: int = 15) -> dict:
+def fetch_signal(signal_name: str, timeout: int = 15, risk_hint: str = "neutral", ip: str | None = None) -> dict:
     """
     Fetches a signal with real x402 payment on Stellar testnet.
     
@@ -240,6 +328,10 @@ def fetch_signal(signal_name: str, timeout: int = 15) -> dict:
         One of: "ip-reputation", "device-history", "tx-velocity"
     timeout : int
         HTTP request timeout in seconds.
+    risk_hint : str
+        "high", "low", or "neutral" — guides the signal server's data pool selection.
+    ip : str | None
+        IP address to query for ip-reputation signal (default: "8.8.8.8").
     
     Returns
     -------
@@ -260,12 +352,21 @@ def fetch_signal(signal_name: str, timeout: int = 15) -> dict:
         )
     
     catalog_entry = SIGNAL_CATALOG[signal_name]
-    url = f"{SERVER_URL}{catalog_entry['endpoint']}"
+    base_endpoint = catalog_entry['endpoint']
     cost_usd = catalog_entry["cost_usd"]
+
+    # Build query params
+    params = []
+    if risk_hint in ("high", "low", "neutral"):
+        params.append(f"risk_hint={risk_hint}")
+    if signal_name == "ip-reputation":
+        params.append(f"ip={ip or '8.8.8.8'}")
+    query_string = ("?" + "&".join(params)) if params else ""
+    url = f"{SERVER_URL}{base_endpoint}{query_string}"
     
     headers = {
         "Content-Type": "application/json",
-        "X-Signal-Client": "FraudSignal-Agent/1.0",
+        "X-Signal-Client": "Scorythm-Agent/1.0",
     }
     
     start_time = time.monotonic()
@@ -464,7 +565,7 @@ if __name__ == "__main__":
     import json
     
     print("=" * 60)
-    print("FraudSignal x402 Client — Real Stellar Payments")
+    print("Scorythm x402 Client — Real Stellar Payments")
     print(f"Server: {SERVER_URL}")
     print(f"Stellar Address: {STELLAR_ADDRESS[:10]}...")
     print("=" * 60)
