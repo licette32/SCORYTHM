@@ -6,7 +6,7 @@
 
 // API_URL se carga dinámicamente desde /config (inyectado por el servidor Node).
 // Fallback a localhost:8000 para desarrollo local.
-let API_URL = "http://localhost:8000";
+let API_URL = "https://scorythm-api.onrender.com";
 
 (async function loadConfig() {
   try {
