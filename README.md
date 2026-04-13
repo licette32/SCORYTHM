@@ -23,6 +23,10 @@ via x402 micropayments on Stellar testnet — every decision is on-chain.
 
 </div>
 
+<br/>
+
+[🎥 Watch Demo on YouTube](https://youtu.be/Ha25n8RY-88)
+
 ---
 
 ## The Problem
